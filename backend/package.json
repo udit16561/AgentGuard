@@ -16,7 +16,9 @@
     "typecheck": "tsc -p . --noEmit",
     "lint": "eslint src tests",
     "db:migrate": "tsx src/db/migrate.ts",
-    "demo:agent": "tsx ../examples/demo-agent.ts"
+    "demo:agent": "tsx ../examples/demo-agent.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:reset": "tsx src/db/reset.ts"
   },
   "license": "UNLICENSED",
   "dependencies": {

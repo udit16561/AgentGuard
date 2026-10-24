@@ -9,7 +9,7 @@ export default tseslint.config(
     rules: {
       // the pre-written acceptance tests use `any` for response bodies; keep them unchanged
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }]
     }
   }
 );

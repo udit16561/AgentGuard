@@ -78,7 +78,7 @@ export async function createApp(options: AppOptions = {}) {
   app.use('/api/agents', agentRoutes(ctx));
   app.use('/api/tools', toolRoutes(ctx));
   app.use('/api/actions', decisionRoutes(ctx, { adapters: options.adapters }));
-  app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier }));
+  app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));
   app.use('/api/kill-switch', killSwitchRoutes(ctx));
 
   // the PWA is served from the same origin, so the session cookie stays SameSite=Strict with no CORS needed

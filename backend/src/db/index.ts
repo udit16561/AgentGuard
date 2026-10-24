@@ -9,5 +9,12 @@ export function openDb(dbPath: string): Db {
   if (dbPath !== ':memory:') db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+/** Additive column migrations for databases created by an earlier version. */
+function migrate(db: Db) {
+  const has = (table: string, column: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some(c => c.name === column);
+  if (!has('actions', 'replaces_id')) db.exec('ALTER TABLE actions ADD COLUMN replaces_id TEXT');   // v0.3.0: re-proposals
 }

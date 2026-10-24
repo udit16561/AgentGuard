@@ -7,7 +7,7 @@ import { requireCsrf, requireUser } from '../middleware/auth';
 import { CATALOG, operationDef } from '../services/catalog';
 import { newId } from '../services/canonical';
 import { encrypt } from '../services/secrets';
-import { getPermission, Limits, permissionMatrix } from '../services/permissions';
+import { AUTO_ALLOW_INTENTS, getPermission, Limits, permissionMatrix } from '../services/permissions';
 
 interface ConnectionRow { tool: string; status: string; mode: string; connected_at: number }
 
@@ -93,7 +93,12 @@ export function permissionRoutes(ctx: Ctx) {
   r.put('/', requireCsrf, (req, res) => {
     const agent = owned(req);
     const { permissions } = z.object({ permissions: z.array(PermissionChange).min(1).max(100) }).parse(req.body);
-    for (const p of permissions) if (!operationDef(p.tool, p.operation)) throw new AppError(400, 'VALIDATION_ERROR', `Unknown operation ${p.tool}.${p.operation}`);
+    for (const p of permissions) {
+      const def = operationDef(p.tool, p.operation);
+      if (!def) throw new AppError(400, 'VALIDATION_ERROR', `Unknown operation ${p.tool}.${p.operation}`);
+      // auto-allow exists only for reads and alarms; anything that sends, posts, pays or deletes always asks (AUTO-04)
+      if (p.limits?.autoAllow && !AUTO_ALLOW_INTENTS.includes(def.intent)) throw new AppError(400, 'VALIDATION_ERROR', `${p.tool}.${p.operation} can never be auto-allowed`);
+    }
     const save = db.transaction(() => {
       for (const p of permissions) {
         const before = getPermission(db, agent.id, p.tool, p.operation);

@@ -61,14 +61,30 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
     if (outside.length) return deny(403, 'PERMISSION_DENIED', 'RECIPIENT_NOT_ALLOWED', `Not on the allowed list: ${outside.slice(0, 3).join(', ')}`);
   }
 
+  if (limits.allowedPayees?.length) {
+    const payee = list(a.payload.payee ?? a.payload.to)[0];
+    if (payee && !limits.allowedPayees.some(p => p.toLowerCase() === payee.toLowerCase()))
+      return deny(403, 'PERMISSION_DENIED', 'PAYEE_NOT_ALLOWED', `${payee} is not on the allowed payee list`);
+  }
+
+  if (limits.maxRecipients != null) {
+    const count = new Set([...list(a.payload.to), ...list(a.payload.cc), ...list(a.payload.bcc), ...list(a.payload.recipients), ...list(a.payload.attendees)]
+      .filter(r => !['you', 'me', 'self'].includes(r.toLowerCase()))).size;
+    if (count > limits.maxRecipients) return deny(403, 'PERMISSION_DENIED', 'BULK_LIMIT_EXCEEDED', `${count} recipients is over the limit of ${limits.maxRecipients}`);
+  }
+
+  const outsideHours = limits.timeWindow ? outsideWindow(minuteOfDay, limits.timeWindow) : false;
+  if (outsideHours && limits.enforceHours)
+    return deny(403, 'PERMISSION_DENIED', 'OUTSIDE_ALLOWED_HOURS', `Only allowed between ${limits.timeWindow!.start} and ${limits.timeWindow!.end}`);
+
   return {
     ok: true, limits,
     context: {
       knownRecipients: [...(limits.knownRecipients ?? []), ...(limits.allowedRecipients ?? [])],
-      knownPayees: limits.knownPayees ?? [],
+      knownPayees: [...(limits.knownPayees ?? []), ...(limits.allowedPayees ?? [])],
       dailyCap: limits.dailyCap,
       spentToday,
-      outsideAllowedHours: limits.timeWindow ? outsideWindow(minuteOfDay, limits.timeWindow) : false
+      outsideAllowedHours: outsideHours
     }
   };
 }

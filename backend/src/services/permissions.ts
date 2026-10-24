@@ -13,8 +13,19 @@ export const Limits = z.object({
   knownPayees: names.optional(),
   knownRecipients: names.optional(),
   allowedRecipients: names.optional(),
-  timeWindow: z.object({ start: hhmm, end: hhmm }).optional()
+  /** payments: only these payees may be paid at all */
+  allowedPayees: names.optional(),
+  /** messaging, email, calendar: more recipients than this is blocked as bulk */
+  maxRecipients: z.number().int().min(1).max(1000).optional(),
+  timeWindow: z.object({ start: hhmm, end: hhmm }).optional(),
+  /** true: outside timeWindow is blocked; otherwise it only raises the risk */
+  enforceHours: z.boolean().optional(),
+  /** LOW-risk reads and alarms only (see AUTO_ALLOW_INTENTS); still fully audited */
+  autoAllow: z.boolean().optional()
 }).strict();
+
+/** The only intents a user may auto-allow (docs/SECURITY_AND_APPROVALS.md §3). */
+export const AUTO_ALLOW_INTENTS = ['READ_DATA', 'SET_REMINDER'];
 export type Limits = z.infer<typeof Limits>;
 
 export interface PermissionRow { id: string; agent_id: string; tool: string; operation: string; allowed: number; limits: string; updated_at: number }

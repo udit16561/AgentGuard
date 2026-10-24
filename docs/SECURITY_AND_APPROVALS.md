@@ -1,0 +1,50 @@
+# Security and Approvals
+
+## 1. Three gates (all required, checked in the backend at execution time)
+1. **Permission** — agent ACTIVE, tool connected, operation allowed, limits satisfied, kill switch off, plan entitles it.
+2. **Approval** — an `APPROVED` record exists whose `payloadHash` equals the current hash, not expired, made by the owning user.
+3. **Verification** — adapter returns a provider reference/confirmation. No confirmation ⇒ `UNKNOWN`, not `COMPLETED`.
+
+The frontend only *displays* these; it never enforces them.
+
+**Check order on approve** (`docs/DECISIONS.md` F): owner (404) → already decided (409 `ALREADY_DECIDED`) → expired (410 `APPROVAL_EXPIRED`) → payload hash (409 `PAYLOAD_CHANGED`) → kill switch or paused agent (423 `AGENT_PAUSED`) → permission and limits (403 `PERMISSION_DENIED`) → re-auth (401 `REAUTH_REQUIRED`) → approve, then the execution service re-checks every gate before calling the adapter.
+
+**Approval window** (DECISIONS D): `APPROVAL_TTL_MINUTES` (default 10) runs from the moment the action is proposed. After it, the action becomes `EXPIRED` and has to be proposed again.
+
+## 2. Payload hash
+`payloadHash = SHA-256(canonicalJSON({ agentId, tool, operation, payload }))`.
+Any change to amount, currency, recipient, content, media, time, or attendees produces a new hash ⇒ old approval void.
+
+## 3. When approval is mandatory
+- Always: payments, sending messages/emails, publishing/editing/deleting posts, creating/cancelling meetings, deleting data.
+- Configurable (user may auto-allow): reading data, setting a personal alarm/reminder — only if risk is LOW.
+- HIGH/CRITICAL also need **re-auth** (password/PIN) within the last 5 minutes.
+- `NEEDS_REVIEW` actions may be approved, but are treated like HIGH: re-auth is required (DECISIONS C).
+
+## 4. Classifier limits
+- May raise risk, add reasons, or force `NEEDS_REVIEW`.
+- May **never** approve, lower a mandatory approval, or change permissions.
+- Error, timeout, or low confidence ⇒ fail closed.
+
+## 5. Agent isolation
+- Agent API keys can only call `POST /api/actions` and read their own action status.
+- Agents cannot read provider tokens, other agents' data, settings, permissions, or the audit log.
+- Treat all agent-supplied text as untrusted: validate schema, cap sizes, escape on render, ignore embedded "instructions".
+
+## 6. Audit log
+- Append-only table. **Prototype (SQLite):** there are no database users, so append-only is enforced by having no update/delete routes plus the hash chain. There is deliberately no blocking trigger, so SEC-18 can simulate tampering. **PostgreSQL:** the app's DB user gets INSERT/SELECT only (DECISIONS B).
+- Each event stores `prevHash` and `hash = SHA-256(prevHash + event)`; `/api/audit/verify` recomputes the chain.
+- Log: proposals, blocks, alerts sent, approvals, rejections, expiries, executions, permission changes, plan changes, kill switch, logins.
+- Redact secrets, tokens, full card/bank numbers.
+
+## 7. Secrets and tokens
+- `.env` only; `.env.example` with placeholders committed.
+- OAuth tokens encrypted at rest (AES-256-GCM, key from env).
+- Agent API keys stored hashed; shown once on creation.
+- No secrets in frontend code, `localStorage`, URLs, or logs.
+
+## 8. Web security
+HTTPS, HttpOnly+Secure+SameSite cookies, CSRF token on state-changing user routes (signup and login are exempt; signup creates the session — DECISIONS G), CORS allow-list, Helmet headers, strict CSP, rate limits (auth and action endpoints), input validation (zod), parameterized queries.
+
+## 9. Testing requirements
+Tests must prove: execution refused without approval; refused after payload change; refused after expiry; refused when permission revoked or kill switch on; classifier error ⇒ NEEDS_REVIEW; agent key cannot approve or read audit; audit has no delete path and chain verifies.

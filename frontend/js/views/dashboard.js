@@ -1,0 +1,85 @@
+import { h, icon, toolIcon, clear } from '../dom.js';
+import { api } from '../api.js';
+import { state } from '../state.js';
+import { OPEN, fmtTime } from '../format.js';
+import { statusChip, riskBadge, actionTitle, say, errorText } from '../components.js';
+
+/** Dashboard: pending alerts, kill switch, recent actions, agent status (docs/FRONTEND_GUIDE.md §2.1). */
+export async function render(view) {
+  const heroCount = h('span', { class: 'big', id: 'pending-count' }, '0');
+  const heroPills = h('div', { class: 'pills' });
+  const heroCta = h('div');
+  const waiting = h('div', { class: 'rows', id: 'waiting' });
+  const recent = h('div', { class: 'rows', id: 'recent' });
+  const agentList = h('div', { class: 'rows', id: 'agents' });
+  const killCard = h('section', { class: 'card kill', 'aria-labelledby': 'kill-h' });
+  let agents = await api.agents();
+  let sig = '';
+
+  view.append(
+    h('div', { class: 'head' }, h('div', {}, h('h1', { id: 'title', tabindex: '-1' }, 'Dashboard'), h('p', {}, 'What your agents want to do, and where each request stands.'))),
+    h('div', { class: 'grid-2' },
+      h('section', { class: 'card hero', 'aria-labelledby': 'hero-k' }, h('span', { class: 'k', id: 'hero-k' }, 'Waiting for your decision'), heroCount, heroPills,
+        h('p', {}, 'Nothing runs until you approve it.'), heroCta),
+      killCard),
+    h('div', { class: 'grid-3' },
+      h('section', { class: 'card', 'aria-labelledby': 'w-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'w-h' }, 'Needs your decision'), h('a', { class: 'link', href: '#/review' }, 'Review all', icon('arrow', 14))), waiting),
+      h('section', { class: 'card', 'aria-labelledby': 'r-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'r-h' }, 'Recent actions'), h('a', { class: 'link', href: '#/audit' }, 'Audit log', icon('arrow', 14))), recent),
+      h('section', { class: 'card', 'aria-labelledby': 'a-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'a-h' }, 'Agents'), h('a', { class: 'link', href: '#/agents' }, 'Manage', icon('arrow', 14))), agentList))
+  );
+
+  const row = a => h('a', { class: 'row', href: `#/review/${encodeURIComponent(a.id)}` }, h('span', { class: 'ic' }, toolIcon(a.tool)),
+    h('span', { class: 'grow' }, h('span', { class: 't' }, actionTitle(a)), h('span', { class: 'm' }, `${a.agentName ?? 'Agent'} · ${fmtTime(a.createdAt)}`)),
+    h('span', { class: 'chips' }, OPEN.includes(a.status) ? riskBadge(a.riskLevel) : statusChip(a.status)));
+
+  function renderKill() {
+    const on = !!state.me?.killSwitch;
+    killCard.classList.toggle('on', on);
+    const btn = h('button', { type: 'button', class: `btn big-btn ${on ? 'ghost' : 'danger'}`, id: 'kill-switch', 'aria-pressed': String(on) },
+      icon(on ? 'play' : 'pause', 20), on ? 'Resume all agents' : 'Pause all agents');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await api.killSwitch(!on);
+        state.me = { ...state.me, killSwitch: !on };
+        window.dispatchEvent(new CustomEvent('ag:changed'));   // shell banner, plus this card and the agent list
+        say(!on ? 'All agents paused. Pending actions cannot run.' : 'Agents resumed.');
+        document.getElementById('kill-switch')?.focus();
+      } catch (e) { say(errorText(e)); btn.disabled = false; }
+    });
+    clear(killCard).append(
+      h('h2', { id: 'kill-h' }, 'Kill switch'),
+      h('p', {}, on ? 'PAUSED. No agent can propose or run anything, including actions already waiting.' : 'One tap pauses every agent at once, including actions already waiting for you.'),
+      btn,
+      h('p', { class: 'fine' }, 'This is always available, on every plan.'));
+  }
+
+  function renderAgents() {
+    clear(agentList).append(...(agents.length ? agents.map(a => h('div', { class: 'row' }, h('span', { class: 'ic' }, icon('bot')),
+      h('span', { class: 'grow' }, h('span', { class: 't' }, a.name), h('span', { class: 'm' }, a.model ?? 'No model set')),
+      statusChip(state.me?.killSwitch ? 'PAUSED' : a.status)))
+      : [h('p', { class: 'empty' }, 'No agents yet. Create one under Agents.')]));
+  }
+
+  function update(actions) {
+    const open = actions.filter(a => OPEN.includes(a.status));
+    const next = JSON.stringify([open.map(a => [a.id, a.status]), actions.slice(0, 8).map(a => [a.id, a.status])]);
+    if (next === sig) return;
+    sig = next;
+    heroCount.textContent = String(open.length);
+    const high = open.filter(a => a.riskLevel === 'HIGH' || a.riskLevel === 'CRITICAL').length;
+    clear(heroPills).append(h('span', { class: 'pill' }, `${high} high or critical`), h('span', { class: 'pill' }, `${open.filter(a => a.status === 'NEEDS_REVIEW').length} need review`));
+    clear(heroCta).append(open.length ? h('a', { class: 'btn', href: `#/review/${encodeURIComponent(open[0].id)}` }, 'Start reviewing', icon('arrow', 16)) : h('p', {}, h('b', {}, 'All caught up.')));
+    clear(waiting).append(...(open.length ? open.slice(0, 5).map(row) : [h('p', { class: 'empty' }, 'Nothing is waiting for you.')]));
+    clear(recent).append(...(actions.length ? actions.slice(0, 6).map(row) : [h('p', { class: 'empty' }, 'No actions yet. Your agents’ proposals appear here.')]));
+  }
+
+  renderKill();
+  renderAgents();
+  update(await api.actions({ limit: 200 }));
+  const onTick = e => { update(e.detail.actions); if (killCard.classList.contains('on') !== !!e.detail.me.killSwitch) { renderKill(); renderAgents(); } };
+  const onChanged = () => { renderKill(); renderAgents(); };
+  window.addEventListener('ag:tick', onTick);
+  window.addEventListener('ag:changed', onChanged);
+  return () => { window.removeEventListener('ag:tick', onTick); window.removeEventListener('ag:changed', onChanged); };
+}

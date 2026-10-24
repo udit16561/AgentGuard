@@ -4,6 +4,20 @@
 
 > Private repository · Proprietary license (see `LICENSE`).
 
+## Run the app (MOCK mode)
+```bash
+cd backend
+npm install
+npm run db:seed     # demo account + agent "Helper" with Payments connected; prints the agent key once
+npm run dev         # open http://localhost:4000 and sign in as demo@agentguard.dev / Demo#12345
+```
+In a second terminal, play the agent (PowerShell: `$env:AGENT_API_KEY="ag_..."`; Git Bash: `export AGENT_API_KEY=ag_...`):
+```bash
+cd backend
+npm run demo:agent -- pay 500 Ravi
+```
+Tests: `npm test` in `backend/` (API), and `npm install` then `npx playwright test` at the repo root (UI, desktop and mobile).
+
 ## Start here
 1. Read `CLAUDE.md`.
 2. Use the prompts in `KICKOFF_PROMPT.md` in Claude Code at the repo root, starting with prompt 0.

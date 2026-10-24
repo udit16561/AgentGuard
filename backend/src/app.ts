@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -27,6 +29,16 @@ export interface AppOptions {
   classifier?: ModelClassifier;
   /** Test hook: replace a tool's mock adapter (for example one with no provider reference, SEC-25). */
   adapters?: Partial<Record<string, Adapter>>;
+  /** Serve ../frontend as static files (default true). */
+  serveFrontend?: boolean;
+}
+
+// works from src/ (tsx) and from dist/src/ (built)
+function findFrontend(): string | null {
+  for (const dir of [path.resolve(__dirname, '../../frontend'), path.resolve(__dirname, '../../../frontend')]) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) return dir;
+  }
+  return null;
 }
 
 /** Builds the API. Tests call this with dbPath ':memory:' (docs/ARCHITECTURE_AND_API.md §4). */
@@ -38,10 +50,21 @@ export async function createApp(options: AppOptions = {}) {
 
   const app = express();
   app.disable('x-powered-by');
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } } }));
+  // strict CSP: scripts, styles and data only from this origin; no inline script or style attributes
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'"], imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"],
+        fontSrc: ["'self'"], manifestSrc: ["'self'"], objectSrc: ["'none'"], baseUri: ["'none'"], formAction: ["'self'"], frameAncestors: ["'none'"]
+      }
+    }
+  }));
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(express.json({ limit: '64kb' }));
   app.use(cookieParser());
+  // API responses hold personal data: never cache them (docs/FRONTEND_GUIDE.md §4)
+  app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
   const ctx: Ctx = { db, clock, config, audit: createAuditService(db, clock) };
   app.use(loadSession(ctx));
@@ -57,6 +80,10 @@ export async function createApp(options: AppOptions = {}) {
   app.use('/api/actions', decisionRoutes(ctx, { adapters: options.adapters }));
   app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier }));
   app.use('/api/kill-switch', killSwitchRoutes(ctx));
+
+  // the PWA is served from the same origin, so the session cookie stays SameSite=Strict with no CORS needed
+  const frontendDir = findFrontend();
+  if (frontendDir && options.serveFrontend !== false) app.use(express.static(frontendDir, { index: 'index.html', dotfiles: 'ignore' }));
 
   app.use((_req, _res, next) => next(notFound('Route not found')));
   app.use(errorHandler);

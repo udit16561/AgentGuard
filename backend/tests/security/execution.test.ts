@@ -33,7 +33,7 @@ describe('verification (gate 3)', () => {
     await approveFully(ctx, body.id);
     const a = await getAction(ctx, body.id);
     expect(a.execution.adapterMode).toBe('MOCK');
-    expect(a.execution.providerRef).toMatch(/^mock_payments_/);
+    expect(a.execution.providerRef).toMatch(/^pay_[0-9a-f]+$/);   // realistic gateway id from the payments mock
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

@@ -1,10 +1,19 @@
 import type { Ctx } from '../context';
+import { canonicalJSON } from './canonical';
 
 export interface ActionRow {
   id: string; user_id: string; agent_id: string; tool: string; operation: string; payload: string; payload_hash: string;
   intent: string | null; risk_level: string | null; risk_score: number | null; confidence: number | null;
-  risk_reasons: string; flags: string; status: string; block_reason: string | null;
+  risk_reasons: string; flags: string; status: string; block_reason: string | null; replaces_id?: string | null;
   created_at: number; expires_at: number; updated_at: number;
+}
+
+/** Field-by-field "what changed" between a re-proposal and the action it replaces (top-level payload fields). */
+export function payloadChanges(before: Record<string, unknown>, after: Record<string, unknown>) {
+  const keys = [...Object.keys(after), ...Object.keys(before).filter(k => !(k in after))];
+  return keys
+    .filter(k => canonicalJSON(before[k] ?? null) !== canonicalJSON(after[k] ?? null))
+    .map(k => ({ field: k, before: before[k] ?? null, after: after[k] ?? null }));
 }
 
 export const OPEN = ['PENDING_REVIEW', 'NEEDS_REVIEW'];
@@ -32,7 +41,10 @@ export function actionView(ctx: Ctx, a: ActionRow) {
   const execution = ctx.db.prepare('SELECT adapter_mode, provider_ref, result, error, finished_at FROM executions WHERE action_id = ?').get(a.id) as
     { adapter_mode: string; provider_ref: string | null; result: string | null; error: string | null; finished_at: number | null } | undefined;
   const agent = ctx.db.prepare('SELECT name FROM agents WHERE id = ?').get(a.agent_id) as { name: string } | undefined;
+  const prev = a.replaces_id ? ctx.db.prepare('SELECT id, status, payload, created_at FROM actions WHERE id = ?').get(a.replaces_id) as { id: string; status: string; payload: string; created_at: number } | undefined : undefined;
   return {
+    replaces: prev ? { id: prev.id, status: prev.status, payload: JSON.parse(prev.payload), createdAt: new Date(prev.created_at).toISOString() } : null,
+    changes: prev ? payloadChanges(JSON.parse(prev.payload), JSON.parse(a.payload)) : [],
     id: a.id, agentId: a.agent_id, agentName: agent?.name ?? null, tool: a.tool, operation: a.operation,
     payload: JSON.parse(a.payload), payloadHash: a.payload_hash,
     intent: a.intent, riskLevel: a.risk_level, riskScore: a.risk_score, confidence: a.confidence,

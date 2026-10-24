@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS actions (
   flags TEXT NOT NULL DEFAULT '[]',
   status TEXT NOT NULL,
   block_reason TEXT,
+  replaces_id TEXT,
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

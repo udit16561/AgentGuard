@@ -25,11 +25,11 @@ export function authRoutes(ctx: Ctx) {
   const r = Router();
   const { db, clock, config, audit } = ctx;
 
-  // per-IP brake on the auth endpoints, on top of the per-account lockout (AUTH-02)
-  r.use(rateLimit({
+  // per-IP brake on the password endpoints, on top of the per-account lockout (AUTH-02); csrf and logout are not throttled
+  const passwordLimiter = rateLimit({
     windowMs: 15 * 60_000, limit: 100, standardHeaders: 'draft-8', legacyHeaders: false,
     handler: (_req, res) => { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } }); }
-  }));
+  });
 
   function startSession(res: Response, user: UserRow) {
     const token = crypto.randomBytes(32).toString('base64url');
@@ -42,7 +42,7 @@ export function authRoutes(ctx: Ctx) {
   }
 
   // signup also signs the user in (docs/DECISIONS.md G); new accounts start on Plus unless a plan is given (A)
-  r.post('/signup', async (req, res) => {
+  r.post('/signup', passwordLimiter, async (req, res) => {
     const body = Signup.parse(req.body);
     if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(body.email)) throw new AppError(409, 'VALIDATION_ERROR', 'An account with this email already exists');
     const user: UserRow = {
@@ -57,7 +57,7 @@ export function authRoutes(ctx: Ctx) {
     res.status(201).json({ id: user.id, email: user.email, plan: user.plan_id });
   });
 
-  r.post('/login', async (req, res) => {
+  r.post('/login', passwordLimiter, async (req, res) => {
     const body = Credentials.parse(req.body);
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(body.email) as UserRow | undefined;
     const now = clock.now();
@@ -87,7 +87,7 @@ export function authRoutes(ctx: Ctx) {
   r.get('/csrf', requireUser, (req, res) => { res.json({ token: req.session!.csrf_token }); });
 
   // a fresh password check, needed before approving HIGH/CRITICAL or NEEDS_REVIEW actions
-  r.post('/reauth', requireUser, requireCsrf, async (req, res) => {
+  r.post('/reauth', passwordLimiter, requireUser, requireCsrf, async (req, res) => {
     const { password } = z.object({ password: z.string().min(1).max(200) }).parse(req.body);
     if (!(await verifyPassword(req.user!.password_hash, password))) {
       audit.append({ userId: req.user!.id, actorType: 'USER', actorId: req.user!.id, eventType: 'REAUTH_FAILED' });

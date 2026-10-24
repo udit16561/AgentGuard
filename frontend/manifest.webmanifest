@@ -1,0 +1,10 @@
+{
+  "name": "AgentGuard",
+  "short_name": "AgentGuard",
+  "description": "Alert before action. Trace everything.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F4F5F8",
+  "theme_color": "#4F46E5",
+  "icons": []
+}

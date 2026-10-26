@@ -9,7 +9,7 @@ async function enable(page: Page, csrf: string, agentId: string, tool: string, o
 }
 
 test('UI-13 each tool has its own limits form: payments, messaging and posting', async ({ page }) => {
-  const u = await readyUser(page);
+  const u = await readyUser(page, 'pro');   // X is in the Pro catalog (v0.7.0)
   await enable(page, u.csrf, u.agentId, 'x', ['post', 'reply']);
   await page.goto('/#/agents');
 
@@ -55,7 +55,7 @@ test('UI-14 auto-allow is off by default, only offered for reads and alarms, and
 });
 
 test('UI-15 the review screen previews each tool: email, post, meeting and payment receipt', async ({ page, request }) => {
-  const u = await readyUser(page);
+  const u = await readyUser(page, 'pro');   // X is in the Pro catalog (v0.7.0)
   await enable(page, u.csrf, u.agentId, 'x', ['post']);
   await enable(page, u.csrf, u.agentId, 'calendar', ['create'], { knownRecipients: ['asha@example.com'] });
 

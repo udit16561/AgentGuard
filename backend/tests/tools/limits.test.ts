@@ -31,7 +31,7 @@ describe('per-tool limits', () => {
   });
 
   it('LIM-03 posting: enforced allowed hours block posts outside them', async () => {
-    const ctx = await setup();
+    const ctx = await setup({ plan: 'pro' });   // X is in the Pro catalog (v0.7.0)
     await connectTool(ctx, 'x');
     await allow(ctx, 'x', 'post', { timeWindow: windowExcludingNow(ctx), enforceHours: true });
     const res = await propose(ctx, 'x', 'post', { text: 'Late night thoughts', audience: 'public' });
@@ -40,7 +40,7 @@ describe('per-tool limits', () => {
   });
 
   it('LIM-04 posting: unenforced hours only raise the risk and flag it', async () => {
-    const ctx = await setup();
+    const ctx = await setup({ plan: 'pro' });   // X is in the Pro catalog (v0.7.0)
     await connectTool(ctx, 'x');
     await allow(ctx, 'x', 'post', { timeWindow: windowExcludingNow(ctx) });
     const res = await propose(ctx, 'x', 'post', { text: 'Late night thoughts' });

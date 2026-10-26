@@ -180,7 +180,7 @@ describe('checking every proposal', () => {
   });
 
   it('PREF-13 blockedTopics: a political post is flagged PREFERENCE_TOPIC; an unrelated one is not', async () => {
-    const ctx = await fixed();
+    const ctx = await setup({ clock: createClock(WED_2PM), plan: 'pro' });   // X is in the Pro catalog (v0.7.0)
     await connectTool(ctx, 'x');
     await allow(ctx, 'x', 'post');
     await prefs(ctx, 'x', [{ type: 'blockedTopics', topics: ['politics'] }]);

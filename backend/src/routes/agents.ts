@@ -7,7 +7,7 @@ import { requireCsrf, requireUser } from '../middleware/auth';
 import { newId, sha256 } from '../services/canonical';
 
 const newKey = () => `ag_${crypto.randomBytes(32).toString('base64url')}`;
-const view = (a: AgentRow) => ({ id: a.id, name: a.name, model: a.model, status: a.status, kind: a.kind ?? 'external', createdAt: new Date(a.created_at).toISOString() });
+const view = (a: AgentRow) => ({ id: a.id, name: a.name, model: a.model, status: a.status, kind: a.kind ?? 'external', pausedByPlan: !!a.paused_by_plan, createdAt: new Date(a.created_at).toISOString() });
 
 export function agentRoutes(ctx: Ctx) {
   const r = Router();
@@ -29,6 +29,7 @@ export function agentRoutes(ctx: Ctx) {
   // the plain key is returned exactly once; only its hash is stored (AUTH-03)
   r.post('/', requireCsrf, (req, res) => {
     const body = z.object({ name: z.string().trim().min(1).max(60), model: z.string().trim().max(80).optional() }).parse(req.body);
+    ctx.entitlements.require(req.user!.id, { feature: 'agents' });
     const apiKey = newKey();
     const agent: AgentRow = { id: newId('agt'), user_id: req.user!.id, name: body.name, model: body.model ?? null, api_key_hash: sha256(apiKey), status: 'ACTIVE', created_at: clock.now() };
     db.prepare('INSERT INTO agents (id, user_id, name, model, api_key_hash, status, created_at) VALUES (@id, @user_id, @name, @model, @api_key_hash, @status, @created_at)').run(agent);
@@ -49,9 +50,11 @@ export function agentRoutes(ctx: Ctx) {
     const a = owned(req);
     const { paused } = z.object({ paused: z.boolean().default(true) }).parse(req.body ?? {});
     const status = paused ? 'PAUSED' : 'ACTIVE';
-    db.prepare('UPDATE agents SET status = ? WHERE id = ?').run(status, a.id);
+    // resuming counts against the plan's agent limit (pausing is always allowed)
+    if (!paused && a.status !== 'ACTIVE') ctx.entitlements.require(req.user!.id, { feature: 'agents' });
+    db.prepare('UPDATE agents SET status = ?, paused_by_plan = 0 WHERE id = ?').run(status, a.id);
     log(req, paused ? 'AGENT_PAUSED' : 'AGENT_RESUMED', a.id);
-    res.json(view({ ...a, status }));
+    res.json(view({ ...a, status, paused_by_plan: 0 }));
   });
 
   // the old key stops working immediately (AUTH-04)

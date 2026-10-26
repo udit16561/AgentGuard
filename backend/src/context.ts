@@ -5,6 +5,7 @@ import type { AuditService } from './services/audit';
 import type { PreferenceModel } from './services/preferences/parse';
 import type { ModelFactory } from './models/providers';
 import type { PushSender } from './services/notify';
+import type { EntitlementService } from './services/entitlements';
 
 /** Everything a route or service needs, built once per app in createApp. */
 export interface Ctx {
@@ -21,6 +22,8 @@ export interface Ctx {
   modelTimeoutMs?: number;
   /** Web Push sender (web-push with VAPID; tests pass a fake) */
   pushSender?: PushSender;
+  /** every plan check goes through here (docs/PLANS_AND_ENTITLEMENTS.md) */
+  entitlements: EntitlementService;
 }
 
 export interface UserRow {
@@ -31,7 +34,7 @@ export interface SessionRow {
   id: string; token_hash: string; user_id: string; csrf_token: string; reauth_at: number | null; expires_at: number; created_at: number;
 }
 export interface AgentRow {
-  id: string; user_id: string; name: string; model: string | null; api_key_hash: string; status: 'ACTIVE' | 'PAUSED' | 'REVOKED'; kind?: 'external' | 'assistant'; created_at: number;
+  id: string; user_id: string; name: string; model: string | null; api_key_hash: string; status: 'ACTIVE' | 'PAUSED' | 'REVOKED'; kind?: 'external' | 'assistant'; paused_by_plan?: number; created_at: number;
 }
 
 declare module 'express-serve-static-core' {

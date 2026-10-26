@@ -34,8 +34,11 @@ export function pushRoutes(ctx: Ctx) {
   const log = (userId: string, eventType: string, endpoint: string) =>
     audit.append({ userId, actorType: 'USER', actorId: userId, eventType, data: { host: new URL(endpoint).host } });
 
-  r.get('/key', (_req, res) => {
-    res.json(pushEnabled(ctx) ? { enabled: true, publicKey: ctx.config.vapidPublicKey } : { enabled: false, publicKey: null });
+  r.get('/key', (req, res) => {
+    if (!pushEnabled(ctx)) { res.json({ enabled: false, publicKey: null }); return; }
+    // phone alerts are a plan feature; in-app and live alerts are on every plan
+    const lock = ctx.entitlements.lock(req.user!.id, { feature: 'pushAlerts' });
+    res.json(lock ? { enabled: false, publicKey: null, locked: true, upgradeTo: lock.upgradeTo } : { enabled: true, publicKey: ctx.config.vapidPublicKey });
   });
 
   r.get('/subscriptions', (req, res) => {
@@ -45,8 +48,9 @@ export function pushRoutes(ctx: Ctx) {
 
   r.post('/subscriptions', requireCsrf, (req, res) => {
     if (!pushEnabled(ctx)) throw new AppError(409, 'PUSH_DISABLED', 'Phone alerts are not set up on this server (VAPID keys missing)');
-    const body = Subscription.parse(req.body);
     const userId = req.user!.id;
+    ctx.entitlements.require(userId, { feature: 'pushAlerts' });
+    const body = Subscription.parse(req.body);
     // one row per endpoint: re-subscribing the same device updates it (and moves it to this user)
     db.prepare(`INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`)
@@ -66,6 +70,7 @@ export function pushRoutes(ctx: Ctx) {
   // a test alert for setting up a phone; it opens the Review list, not any action
   r.post('/test', requireCsrf, async (req, res) => {
     if (!pushEnabled(ctx)) throw new AppError(409, 'PUSH_DISABLED', 'Phone alerts are not set up on this server (VAPID keys missing)');
+    ctx.entitlements.require(req.user!.id, { feature: 'pushAlerts' });
     const sent = await sendToUser(ctx, req.user!.id, { title: 'AgentGuard', body: 'Test alert: phone alerts are working.', url: '/#/review', tag: 'test', actions: [{ action: 'review', title: 'Review' }] });
     res.json({ sent });
   });

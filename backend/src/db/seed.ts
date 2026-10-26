@@ -31,8 +31,10 @@ async function main() {
 
   try {
     const exists = db.prepare('SELECT 1 FROM users WHERE email = ?').get(DEMO.email);
-    await call('POST', exists ? '/api/auth/login' : '/api/auth/signup', DEMO);
+    // the demo connects all nine tools, so it is on the plan that includes them all
+    await call('POST', exists ? '/api/auth/login' : '/api/auth/signup', exists ? DEMO : { ...DEMO, plan: 'pro' });
     csrf = (await call('GET', '/api/auth/csrf')).data.token;
+    if (exists) await call('POST', '/api/me/plan', { plan: 'pro' });   // a demo made before v0.7.0 moves to Pro (mock billing)
 
     let agent = (await call('GET', '/api/agents')).data.agents.find((a: { name: string }) => a.name === 'Helper');
     let apiKey: string;

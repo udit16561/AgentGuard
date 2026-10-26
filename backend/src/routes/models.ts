@@ -92,6 +92,7 @@ export function modelRoutes(ctx: Ctx) {
       const model = id ? getModel(ctx, userId, id) ?? null : null;
       if (id && !model) throw new AppError(400, 'VALIDATION_ERROR', `Unknown model for the ${role} role`);
       if (model && model.last_test_ok !== 1) throw new AppError(400, 'VALIDATION_ERROR', `Run a successful Test connection for “${model.label}” first`);
+      if (model) ctx.entitlements.require(userId, { feature: 'modelRole', role, model });
       if (role === 'guard' && model && model.guard_capable !== 1) throw new AppError(400, 'VALIDATION_ERROR', `“${model.label}” failed the structured-output test, so it cannot be the guard`);
       const cap = body.caps?.[role] === undefined ? roleRow(ctx, userId, role).monthly_cap_usd : body.caps[role]!;
       if (model && cap != null && !priceOf(model.provider, model.model_id)) throw new AppError(400, 'VALIDATION_ERROR', `A spend cap needs a known price, and “${model.label}” is not in the catalog`);

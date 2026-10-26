@@ -31,12 +31,12 @@ const eventHash = (r: Omit<Row, 'hash'>) => sha256(r.prev_hash + canonicalJSON({
  * Append-only, hash-chained audit log (docs/SECURITY_AND_APPROVALS.md §6).
  * This service only ever INSERTs and SELECTs; there is no update or delete method, by design.
  */
-export function createAuditService(db: Db, clock: Clock) {
+export function createAuditService(db: Db, clock: Clock, onAppend?: (e: AuditInput) => void) {
   const last = db.prepare('SELECT seq, hash FROM audit_events ORDER BY seq DESC LIMIT 1');
   const insert = db.prepare(`INSERT INTO audit_events (seq, id, user_id, actor_type, actor_id, event_type, action_id, data, prev_hash, hash, created_at)
     VALUES (@seq, @id, @user_id, @actor_type, @actor_id, @event_type, @action_id, @data, @prev_hash, @hash, @created_at)`);
 
-  const append = db.transaction((e: AuditInput) => {
+  const insertEvent = db.transaction((e: AuditInput) => {
     const prev = last.get() as { seq: number; hash: string } | undefined;
     const row: Omit<Row, 'hash'> = {
       seq: (prev?.seq ?? 0) + 1,
@@ -53,6 +53,15 @@ export function createAuditService(db: Db, clock: Clock) {
     insert.run({ ...row, hash: eventHash(row) });
     return row.seq;
   });
+
+  /** Appends one event; then announces it (live alerts), after the row is safely written. */
+  function append(e: AuditInput) {
+    const seq = insertEvent(e);
+    if (onAppend) {
+      try { onAppend(e); } catch { /* announcing must never break the audited action */ }
+    }
+    return seq;
+  }
 
   function list(userId: string, f: { from?: number; to?: number; agent?: string; tool?: string; eventType?: string; limit?: number } = {}) {
     const where = ['user_id = ?'], args: unknown[] = [userId];

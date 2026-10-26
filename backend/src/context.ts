@@ -4,6 +4,7 @@ import type { Config } from './config';
 import type { AuditService } from './services/audit';
 import type { PreferenceModel } from './services/preferences/parse';
 import type { ModelFactory } from './models/providers';
+import type { PushSender } from './services/notify';
 
 /** Everything a route or service needs, built once per app in createApp. */
 export interface Ctx {
@@ -18,6 +19,8 @@ export interface Ctx {
   modelFactory: ModelFactory;
   /** guard timeout (3 s by default) */
   modelTimeoutMs?: number;
+  /** Web Push sender (web-push with VAPID; tests pass a fake) */
+  pushSender?: PushSender;
 }
 
 export interface UserRow {

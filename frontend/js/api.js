@@ -73,6 +73,13 @@ export const api = {
   rotateModelKey: (id, apiKey) => request('PUT', `/api/models/${encodeURIComponent(id)}/key`, { apiKey }),
   deleteModel: id => request('DELETE', `/api/models/${encodeURIComponent(id)}`),
 
+  // phone alerts (Web Push): the browser's subscription only; a notification can open Review, never decide
+  pushKey: () => request('GET', '/api/push/key'),
+  pushSubscribe: sub => request('POST', '/api/push/subscriptions', sub),
+  pushUnsubscribe: endpoint => request('DELETE', '/api/push/subscriptions', { endpoint }),
+  pushDevices: () => request('GET', '/api/push/subscriptions').then(r => r.subscriptions),
+  pushTest: () => request('POST', '/api/push/test', {}),
+
   audit: params => request('GET', `/api/audit${qs(params)}`).then(r => r.events),
   verify: () => request('GET', '/api/audit/verify')
 };

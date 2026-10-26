@@ -16,11 +16,14 @@ export async function render(view) {
   const spendBox = h('div', { class: 'rows' });
   const spendCard = h('section', { class: 'card', id: 'spending', 'aria-labelledby': 'sp-h' },
     h('div', { class: 'card-h' }, h('h2', { id: 'sp-h' }, 'Spending against your caps'), h('a', { class: 'link', href: '#/agents' }, 'Set caps', icon('arrow', 14))), spendBox);
+  const live = h('span', { class: 'live-status', id: 'live-status', role: 'status' });
+  const showLive = () => { live.classList.toggle('on', !!state.live); live.textContent = state.live ? 'Live' : 'Connecting…'; };
+  showLive();
   let agents = await api.agents();
   let sig = '';
 
   view.append(
-    h('div', { class: 'head' }, h('div', {}, h('h1', { id: 'title', tabindex: '-1' }, 'Dashboard'), h('p', {}, 'What your agents want to do, and where each request stands.'))),
+    h('div', { class: 'head' }, h('div', {}, h('h1', { id: 'title', tabindex: '-1' }, 'Dashboard'), h('p', {}, 'What your agents want to do, and where each request stands.')), live),
     h('div', { class: 'grid-2' },
       h('section', { class: 'card hero', 'aria-labelledby': 'hero-k' }, h('span', { class: 'k', id: 'hero-k' }, 'Waiting for your decision'), heroCount, heroPills,
         h('p', {}, 'Nothing runs until you approve it.'), heroCta),
@@ -108,6 +111,8 @@ export async function render(view) {
   const onTick = e => { update(e.detail.actions); if (killCard.classList.contains('on') !== !!e.detail.me.killSwitch) { renderKill(); renderAgents(); } };
   const onChanged = () => { renderKill(); renderAgents(); };
   window.addEventListener('ag:tick', onTick);
+  window.addEventListener('ag:live', showLive);
+  showLive();   // the stream may have connected while this screen was loading
   window.addEventListener('ag:changed', onChanged);
-  return () => { window.removeEventListener('ag:tick', onTick); window.removeEventListener('ag:changed', onChanged); };
+  return () => { window.removeEventListener('ag:tick', onTick); window.removeEventListener('ag:changed', onChanged); window.removeEventListener('ag:live', showLive); };
 }

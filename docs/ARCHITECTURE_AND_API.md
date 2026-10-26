@@ -39,6 +39,7 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - **ModelConfig**: id, userId, provider, modelId, label, baseUrl?, apiKeyEnc (AES-256-GCM), keyLast4, lastTestAt, lastTestOk, guardCapable, createdAt
 - **ModelRole**: userId, role (`agent|guard`), modelConfigId?, monthlyCapUsd?
 - **ModelUsage**: id, userId, role?, modelConfigId, inputTokens, outputTokens, costUsd?, createdAt
+- **PushSubscription**: id, userId, endpoint (unique), p256dh, auth, createdAt
 - **Agent.kind**: `external` (default) or `assistant` (the built-in Assistant)
 
 ## 3. API endpoints
@@ -86,11 +87,13 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 ### Plans
 - `GET /api/plans` · `GET /api/me/entitlements` · `POST /api/me/plan` (mock billing)
 
-### Realtime
-- `GET /api/stream` (SSE: new alerts, status changes)
+### Realtime and phone alerts (user only; agent keys get 401)
+- `GET /api/stream` (SSE): `event: ready`, then `event: change` with `{ eventType, actionId }` for every audited change of this user (never payloads); heartbeat every 25 s; closes when the session ends
+- `GET /api/push/key` → `{ enabled, publicKey }` · `GET /api/push/subscriptions` → `{ subscriptions: [{ id, host, createdAt }] }`
+- `POST /api/push/subscriptions` body = the browser's `PushSubscription.toJSON()` (CSRF; push-service hosts only; 409 `PUSH_DISABLED` without VAPID keys) · `DELETE /api/push/subscriptions` body `{ endpoint }` · `POST /api/push/test`
 
 ## 4. Testability contract (required by `backend/tests/`)
-- `src/app.ts` exports `createApp({ dbPath, clock?, classifier?, adapters?, preferenceModel?, preferenceModelTimeoutMs?, modelFactory?, modelTimeoutMs? })` returning `{ app, clock, db }`. `clock.advanceMinutes(n)` moves time forward for expiry tests; `createClock(startMs)` pins "now" for time-of-day tests. `adapters` lets a test swap in a mock adapter (for example one that returns no provider reference, for SEC-25). `modelFactory` maps a stored model config to an AI SDK model, so tests pass mock models and never call a provider.
+- `src/app.ts` exports `createApp({ dbPath, clock?, classifier?, adapters?, preferenceModel?, preferenceModelTimeoutMs?, modelFactory?, modelTimeoutMs?, resolveHost?, pushSender? })` returning `{ app, clock, db }`. `clock.advanceMinutes(n)` moves time forward for expiry tests; `createClock(startMs)` pins "now" for time-of-day tests. `adapters` lets a test swap in a mock adapter (for example one that returns no provider reference, for SEC-25). `modelFactory` maps a stored model config to an AI SDK model, so tests pass mock models and never call a provider. `pushSender` replaces the Web Push sender; `resolveHost` replaces DNS for custom base URLs.
 - `src/services/intent.ts` exports `classify({ tool, operation, payload, context })`.
 - The audit table is named `audit_events` and has a `seq` column that starts at 1.
 - `GET /api/actions/:id` (user) includes `payloadHash`, `riskLevel` and `execution` (`null` until run).

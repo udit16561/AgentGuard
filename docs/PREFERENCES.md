@@ -10,7 +10,7 @@ Preferences are **per user and tool**: every agent is held to them. They apply t
 
 ## 2. Parsing (`backend/src/services/preferences/parse.ts`)
 1. **Deterministic parser (default, non-parametric).** The text is split into sentences and matched with regex and keyword patterns: times ("after 9pm", "08:00–22:00"), days and weekends, email addresses and `@domains`, amounts (₹, Rs, INR), durations, never/always/only phrases, and lists of topics.
-2. **Optional small model**, used when `PREFERENCE_MODEL_PROVIDER=anthropic`. The model is set by `PREFERENCE_MODEL` (default `claude-haiku-5-5`) and the key by `PREFERENCE_MODEL_API_KEY`, both in `.env`. Its answer has to pass the same strict zod schema within **3 s**. On any error, timeout or answer outside the schema, the deterministic parser is used, and the response says why.
+2. **Optional small model**, used when `PREFERENCE_MODEL_PROVIDER=anthropic`. The model is set by `PREFERENCE_MODEL` (default `claude-haiku-5-5`) and the key by `PREFERENCE_MODEL_API_KEY`, both in `.env`. Since v0.5.0 the user's own **guard** model (Settings → Models) takes this place when one is assigned. Its answer has to pass the same strict zod schema within **3 s**. On any error, timeout or answer outside the schema, the deterministic parser is used, and the response says why.
 3. **Grants are ignored.** Sentences such as "auto-approve all payments" or "skip approval" never become rules. They are listed back to the user as ignored.
 4. **The user confirms.** The confirm step shows "I understood: …", one line per rule, each with a *Hard rule* switch. Nothing is saved until **Confirm and save**. The original text and the confirmed rules are both stored. Each save is audited as `PREFERENCE_CHANGED`, with the old and new text.
 

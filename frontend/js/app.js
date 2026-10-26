@@ -10,9 +10,10 @@ import * as tools from './views/tools.js';
 import * as agents from './views/agents.js';
 import * as audit from './views/audit.js';
 import * as settings from './views/settings.js';
+import * as assistant from './views/assistant.js';
 
-const ROUTES = { dashboard, review, tools, agents, audit, settings };
-const NAV = [['dashboard', 'Dashboard', 'home'], ['review', 'Review', 'inbox'], ['tools', 'Tools', 'plug'], ['agents', 'Agents', 'bot'], ['audit', 'Audit', 'trace'], ['settings', 'Settings', 'gear']];
+const ROUTES = { dashboard, review, assistant, tools, agents, audit, settings };
+const NAV = [['dashboard', 'Dashboard', 'home'], ['review', 'Review', 'inbox'], ['assistant', 'Assistant', 'chat'], ['tools', 'Tools', 'plug'], ['agents', 'Agents', 'bot'], ['audit', 'Audit', 'trace'], ['settings', 'Settings', 'gear']];
 const POLL_MS = 1000;   // interim until SSE in M4; keeps new alerts well under 3 s (UI-01)
 
 const root = document.getElementById('root');

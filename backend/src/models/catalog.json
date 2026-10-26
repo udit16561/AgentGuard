@@ -1,0 +1,25 @@
+{
+  "checkedOn": "2026-10-26",
+  "note": "Approximate prices in USD per 1M tokens (input / output), from public pricing pages in October 2026. Any model ID can be typed instead.",
+  "providers": [
+    { "id": "anthropic", "name": "Anthropic", "kind": "native", "needsKey": true },
+    { "id": "openai", "name": "OpenAI", "kind": "native", "needsKey": true },
+    { "id": "google", "name": "Google", "kind": "native", "needsKey": true },
+    { "id": "groq", "name": "Groq", "kind": "native", "needsKey": true, "note": "JSON object mode only on some models; run the capability test before using it as the guard." },
+    { "id": "mistral", "name": "Mistral", "kind": "native", "needsKey": true },
+    { "id": "openrouter", "name": "OpenRouter", "kind": "openai-compatible", "needsKey": true, "defaultBaseUrl": "https://openrouter.ai/api/v1", "note": "One key for many models, with IDs like anthropic/claude-sonnet-5-5. Pick models that support structured outputs." },
+    { "id": "ollama", "name": "Ollama (local)", "kind": "openai-compatible", "needsKey": false, "defaultBaseUrl": "http://localhost:11434/v1", "note": "MIT runtime. Qwen 3, Llama, Gemma, Phi or Mistral; a 7B Q4 model fits in about 8 GB of VRAM. Supports JSON-schema output. Nothing leaves the PC." },
+    { "id": "custom", "name": "Other OpenAI-compatible server", "kind": "openai-compatible", "needsKey": false, "note": "LM Studio or any server with an OpenAI-compatible API. https:// URLs, or http://localhost only." }
+  ],
+  "models": [
+    { "provider": "anthropic", "modelId": "claude-opus-5-5", "label": "Claude Opus 5.5", "role": "agent", "price": { "input": 4, "output": 20 } },
+    { "provider": "anthropic", "modelId": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "role": "agent", "price": { "input": 2, "output": 10 } },
+    { "provider": "openai", "modelId": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "role": "agent", "price": { "input": 2, "output": 10 } },
+    { "provider": "openai", "modelId": "gpt-6-astra", "label": "GPT-6 Astra", "role": "agent", "price": { "input": 10, "output": 50 } },
+    { "provider": "google", "modelId": null, "label": "Gemini 3.1 Pro (preview)", "role": "agent", "price": { "input": 2, "output": 12 }, "note": "Read the model ID from Google's model list and type it in." },
+    { "provider": "anthropic", "modelId": "claude-haiku-5-5", "label": "Claude Haiku 5.5", "role": "guard", "price": { "input": 0.1, "output": 0.5 }, "note": "Price for prompts up to 100K tokens." },
+    { "provider": "openai", "modelId": "gpt-6-luna", "label": "GPT-6 Luna", "role": "guard", "price": { "input": 0.1, "output": 0.5 } },
+    { "provider": "google", "modelId": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash-Lite", "role": "guard", "price": { "input": 0.25, "output": 1.5 }, "note": "Free tier available." },
+    { "provider": "google", "modelId": "gemini-3.8-flash", "label": "Gemini 3.8 Flash", "role": "guard", "price": { "input": 0.75, "output": 3.75 }, "note": "This price runs until 31 Dec 2026." }
+  ]
+}

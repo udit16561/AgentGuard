@@ -32,6 +32,15 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 - The optional model parser (`PREFERENCE_MODEL_PROVIDER=anthropic`) is checked against the same strict schema, cannot mark rules hard, has a 3 s timeout, and falls back to the deterministic parser on any error.
 - Hard rules are re-checked at approval and execution time; an unreadable preference blocks at that point (fail closed).
 
+## 4b. Your own models (docs/MODEL_PROVIDERS.md)
+- A model never approves, never lowers risk, and never edits permissions, preferences or audit. The **guard** goes through `classify()` (raise-only; error, 3 s timeout or schema failure ⇒ `NEEDS_REVIEW`) and `parsePreferences()` (drafts only; any error ⇒ built-in parser). Agent text goes to the guard as quoted JSON in the user message, never in the system prompt.
+- The **Assistant** is an ordinary agent row (`kind = 'assistant'`) whose API key is random and discarded. Its only tool, `propose_action`, calls the same `createProposal()` as `POST /api/actions`, so permissions, the classifier, alerts, approvals and audit all apply. It has no permissions until the user grants them under Agents.
+- Keys: AES-256-GCM with `TOKEN_ENCRYPTION_KEY`, only the last 4 characters shown, never returned to the frontend, logs, audit data or agents. Provider error messages are never passed on (they can echo a key); only fixed categories are shown.
+- Adding, testing, rotating and deleting keys need CSRF and a password check within the re-auth window. Audited as `MODEL_KEY_ADDED` (also on rotation, with `rotated: true`), `MODEL_KEY_REMOVED` and `MODEL_ROLE_CHANGED`, all without the key.
+- Base URLs (OpenRouter, Ollama, custom): `https://` or `http://localhost` only; private, link-local, CGNAT and internal names refused when saved, and the resolved address re-checked before every request; redirects are refused. Native providers (OpenAI, Anthropic, Google, Groq, Mistral) take no base URL, so Anthropic is never reached through its OpenAI-compatibility endpoint.
+- Optional monthly spend cap per role (USD, from SDK token counts × catalog price): when reached the role switches off (audited by SYSTEM) and the built-in rules take over.
+- Tests use AI SDK mock models only; the browser tests use a fake factory enabled only by `NODE_ENV=test` plus `MODEL_PROVIDER_MODE=fake`.
+
 ## 5. Agent isolation
 - Agent API keys can only call `POST /api/actions`, read their own action status, and read (`GET /api/agents/me/preferences`) the confirmed preference rules for tools they are allowed to use. They can never write preferences (any other method is `403`), and never see the raw preference text.
 - Agents cannot read provider tokens, other agents' data, settings, permissions, or the audit log.
@@ -47,6 +56,7 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 - `.env` only; `.env.example` with placeholders committed.
 - OAuth tokens encrypted at rest (AES-256-GCM, key from env).
 - Agent API keys stored hashed; shown once on creation.
+- Model API keys (bring your own model) encrypted like OAuth tokens; set `TOKEN_ENCRYPTION_KEY` in `.env`, or keys saved in development become unreadable after a restart (the role then fails closed).
 - No secrets in frontend code, `localStorage`, URLs, or logs.
 
 ## 8. Web security

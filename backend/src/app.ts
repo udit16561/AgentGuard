@@ -24,6 +24,10 @@ import { agentSelfRoutes, preferenceRoutes } from './routes/preferences';
 import { spendingRoutes } from './routes/spending';
 import { anthropicPreferenceModel } from './services/preferences/model';
 import type { PreferenceModel } from './services/preferences/parse';
+import { providerFactory, type ModelFactory } from './models/providers';
+import { fakeModelFactory } from './models/fake';
+import { modelRoutes } from './routes/models';
+import { assistantRoutes } from './routes/assistant';
 
 export interface AppOptions {
   dbPath?: string;
@@ -36,6 +40,10 @@ export interface AppOptions {
   /** Optional preference parser model; defaults to PREFERENCE_MODEL_PROVIDER. Any error falls back to the deterministic parser. */
   preferenceModel?: PreferenceModel;
   preferenceModelTimeoutMs?: number;
+  /** Builds the user's own models (bring your own model). Tests pass AI SDK mock models; the default uses the real providers. */
+  modelFactory?: ModelFactory;
+  /** Guard timeout in ms (default 3000). */
+  modelTimeoutMs?: number;
   /** Serve ../frontend as static files (default true). */
   serveFrontend?: boolean;
 }
@@ -75,7 +83,13 @@ export async function createApp(options: AppOptions = {}) {
 
   const preferenceModel = options.preferenceModel
     ?? (config.preferenceModelProvider === 'anthropic' && config.preferenceModelApiKey ? anthropicPreferenceModel(config.preferenceModelApiKey, config.preferenceModel) : undefined);
-  const ctx: Ctx = { db, clock, config, audit: createAuditService(db, clock), preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs };
+  // the fake factory exists for the browser tests only: NODE_ENV=test and MODEL_PROVIDER_MODE=fake, never otherwise
+  const modelFactory = options.modelFactory
+    ?? (config.nodeEnv === 'test' && process.env.MODEL_PROVIDER_MODE === 'fake' ? fakeModelFactory() : providerFactory());
+  const ctx: Ctx = {
+    db, clock, config, audit: createAuditService(db, clock), preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs,
+    modelFactory, modelTimeoutMs: options.modelTimeoutMs
+  };
   app.use(loadSession(ctx));
   app.use(loadAgent(ctx));
 
@@ -92,6 +106,8 @@ export async function createApp(options: AppOptions = {}) {
   app.use('/api/actions', decisionRoutes(ctx, { adapters: options.adapters }));
   app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));
   app.use('/api/kill-switch', killSwitchRoutes(ctx));
+  app.use('/api/models', modelRoutes(ctx));
+  app.use('/api/assistant', assistantRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));
 
   // the PWA is served from the same origin, so the session cookie stays SameSite=Strict with no CORS needed
   const frontendDir = findFrontend();

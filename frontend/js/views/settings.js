@@ -3,9 +3,11 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { prefs, savePrefs, clearPrefs, applyTheme } from '../format.js';
 import { say } from '../components.js';
+import * as models from './models.js';
 
 /** Display preferences and account. Deliberately has no way to disable approvals or delete audit records (UI-08). */
-export async function render(view) {
+export async function render(view, param) {
+  if (param === 'models') return models.render(view);
   const radio = (name, value, label, current) => {
     const input = h('input', { type: 'radio', name, value, id: `${name}-${value}`, checked: current === value });
     input.addEventListener('change', () => { prefs[name] = value; savePrefs(); applyTheme(); say('Saved.'); });
@@ -33,6 +35,9 @@ export async function render(view) {
           'The audit log cannot be edited or deleted, by you or by agents.'
         ].map(t => h('li', { class: 'actions' }, icon('ok', 18, 2.6), t))),
         h('p', { class: 'fine' }, 'These are not settings. No plan or option turns them off.')),
+      h('section', { class: 'card', 'aria-labelledby': 's-models' }, h('h2', { id: 's-models' }, 'Models'),
+        h('p', {}, 'Optional: use your own AI model for the Assistant and as a second opinion on risk. Without one, AgentGuard runs on its built-in rules.'),
+        h('a', { class: 'btn', href: '#/settings/models', id: 'open-models' }, icon('chip', 16), 'Manage models')),
       h('section', { class: 'card', 'aria-labelledby': 's-acct' }, h('h2', { id: 's-acct' }, 'Account'),
         h('p', {}, state.me.email), h('p', { class: 'muted' }, `Plan: ${state.me.plan} (billing is simulated in the prototype)`), logout)));
 }

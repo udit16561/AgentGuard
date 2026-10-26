@@ -9,6 +9,7 @@ Explain to the user *what the agent is trying to do* and *how risky it is*, so t
 ## 3. Prototype approach (two layers)
 1. **Rule layer (deterministic, always runs):** map tool+operation to base intent and base risk; apply rule boosts.
 2. **Optional model layer:** an LLM or small classifier reads the payload and may add reasons, sentiment/tone flags (e.g., aggressive message, misleading post), or raise risk. Output must be strict JSON validated by schema; otherwise ignored and status = NEEDS_REVIEW.
+   Since v0.5.0 this is the user's own **guard** model (Settings → Models, docs/MODEL_PROVIDERS.md): it must pass a 5-case structured-output test before it can be assigned, gets the proposal as quoted data, has a 3 s timeout, and stops (rules only) when its monthly spend cap is reached.
 
 ## 4. Risk levels
 | Level | Score | Examples |

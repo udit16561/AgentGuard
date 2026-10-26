@@ -64,6 +64,40 @@ export const api = {
   // only called from the confirm step: the backend refuses a save without confirmed: true
   savePreferences: (tool, text, rules) => request('PUT', `/api/tools/${encodeURIComponent(tool)}/preferences`, { text, rules, confirmed: true }),
 
+  // bring your own model: keys go up once and never come back (only the last 4 characters are shown)
+  models: () => request('GET', '/api/models'),
+  modelCatalog: () => request('GET', '/api/models/catalog'),
+  addModel: body => request('POST', '/api/models', body),
+  testModel: id => request('POST', `/api/models/${encodeURIComponent(id)}/test`, {}),
+  setModelRoles: body => request('PUT', '/api/models/roles', body),
+  rotateModelKey: (id, apiKey) => request('PUT', `/api/models/${encodeURIComponent(id)}/key`, { apiKey }),
+  deleteModel: id => request('DELETE', `/api/models/${encodeURIComponent(id)}`),
+
   audit: params => request('GET', `/api/audit${qs(params)}`).then(r => r.events),
   verify: () => request('GET', '/api/audit/verify')
 };
+
+/** POST /api/assistant/chat: calls onEvent for each streamed event ({type: text | proposal | error | done}). */
+export async function chat(messages, onEvent) {
+  if (!csrf) await loadCsrf();
+  const res = await fetch('/api/assistant/chat', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson', 'X-CSRF-Token': csrf }, body: JSON.stringify({ messages })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    const err = new ApiError(res.status, data?.error?.code ?? 'ERROR', data?.error?.message ?? res.statusText);
+    if (res.status === 401 && err.code === 'UNAUTHENTICATED') { csrf = null; onUnauthenticated(); }
+    throw err;
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) if (line.trim()) onEvent(JSON.parse(line));
+  }
+  if (buffer.trim()) onEvent(JSON.parse(buffer));
+}

@@ -70,7 +70,8 @@ interface SubRow { id: string; user_id: string; endpoint: string; p256dh: string
 
 /** Sends one notification to each of the user's devices; a 404/410 means the device unsubscribed, so it is removed. */
 export async function sendToUser(ctx: Ctx, userId: string, payload: Record<string, unknown>) {
-  if (!pushEnabled(ctx) || !ctx.pushSender) return 0;
+  // devices are kept after a downgrade; they just stop receiving until the plan includes phone alerts again
+  if (!pushEnabled(ctx) || !ctx.pushSender || !ctx.entitlements.can(userId, { feature: 'pushAlerts' })) return 0;
   const subs = ctx.db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').all(userId) as SubRow[];
   let sent = 0;
   await Promise.all(subs.map(async s => {

@@ -1,6 +1,6 @@
 import { h, toolIcon, clear } from '../dom.js';
 import { api } from '../api.js';
-import { modeBadge, openDialog, say, errorText } from '../components.js';
+import { modeBadge, openDialog, say, errorText, lockNote } from '../components.js';
 
 const MAX = 500;
 const EXAMPLES = {
@@ -28,12 +28,14 @@ export async function render(view) {
     const prefs = await Promise.all(tools.map(t => api.preferences(t.tool).catch(() => ({ text: '', rules: [] }))));
     clear(grid).append(...tools.map((t, i) => {
       const writes = t.operations.filter(o => o.write).length;
-      const btn = h('button', { type: 'button', class: `btn sm ${t.connected ? 'ghost' : 'primary'}`, id: `tool-${t.tool}` }, t.connected ? 'Disconnect' : 'Connect');
-      btn.addEventListener('click', () => (t.connected ? disconnect(t) : connect(t)));
+      // not in your plan (or over its tool limit): labelled, not hidden; a plan-paused tool keeps its settings
+      const btn = !t.connected && t.locked ? lockNote(t.locked.upgradeTo)
+        : h('button', { type: 'button', class: `btn sm ${t.connected ? 'ghost' : 'primary'}`, id: `tool-${t.tool}` }, t.connected ? 'Disconnect' : 'Connect');
+      if (btn.tagName === 'BUTTON') btn.addEventListener('click', () => (t.connected ? disconnect(t) : connect(t)));
       return h('article', { class: 'card tool', 'aria-labelledby': `tn-${t.tool}` },
         h('div', { class: 'top' }, h('span', { class: 'ic' }, toolIcon(t.tool, 20)), h('span', { class: 'name', id: `tn-${t.tool}` }, t.name), modeBadge(t.mode)),
         h('p', { class: 'fine' }, `${t.operations.length} operations · ${writes} need your approval`),
-        h('p', {}, t.connected ? h('span', { class: 'badge st-COMPLETED' }, 'Connected') : h('span', { class: 'badge st-EXPIRED' }, 'Not connected')),
+        h('p', {}, t.connected ? h('span', { class: 'badge st-COMPLETED' }, 'Connected') : t.pausedByPlan ? h('span', { class: 'badge st-PAUSED', id: `paused-${t.tool}` }, 'Paused by plan') : h('span', { class: 'badge st-EXPIRED' }, 'Not connected')),
         h('div', { class: 'actions' }, btn),
         preferencesBox(t, prefs[i]));
     }));

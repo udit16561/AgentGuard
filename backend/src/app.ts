@@ -33,6 +33,8 @@ import { createEventBus } from './services/events';
 import { pushOnAlert, webPushSender, type PushSender } from './services/notify';
 import { pushRoutes } from './routes/push';
 import { streamRoutes } from './routes/stream';
+import { entitlementService } from './services/entitlements';
+import { planRoutes, mePlanRoutes } from './routes/plans';
 
 export interface AppOptions {
   dbPath?: string;
@@ -105,7 +107,8 @@ export async function createApp(options: AppOptions = {}) {
   const ctx: Ctx = {
     db, clock, config, audit, preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs,
     modelFactory, modelTimeoutMs: options.modelTimeoutMs
-  };
+  } as Ctx;
+  ctx.entitlements = entitlementService(ctx);
   ctx.pushSender = options.pushSender ?? webPushSender(ctx);
   onPush = pushOnAlert(ctx);
   app.locals.events = events;
@@ -115,6 +118,8 @@ export async function createApp(options: AppOptions = {}) {
   app.get('/api/health', (_req, res) => { res.json({ ok: true, integrationMode: config.integrationMode }); });
   app.use('/api/auth', authRoutes(ctx));
   app.use('/api/me/spending', spendingRoutes(ctx));
+  app.use('/api/me', mePlanRoutes(ctx));
+  app.use('/api/plans', planRoutes(ctx));
   app.use('/api/me', meRoutes(ctx));
   app.use('/api/audit', auditRoutes(ctx));
   app.use('/api/agents/me', agentSelfRoutes(ctx));   // agent key only; before the user-only /api/agents routes

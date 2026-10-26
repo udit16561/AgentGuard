@@ -27,7 +27,7 @@ Settings → Models: the user's own provider and API key (encrypted, masked), su
 Alerts on the phone are the core of the app, so this comes before plans. Installable PWA (manifest, icons, service worker caching static files only), offline read-only shell, live alerts over SSE, Web Push (VAPID) that opens the Review screen and never approves, phone layout for review and the kill switch, `npm run dev:lan` for HTTPS on the LAN.
 
 ## M3 — Plans & entitlements (v0.7.0)
-Starter/Plus/Pro, gating, locked-feature UI.
+Starter/Plus/Pro through EntitlementService: agents, tools and catalog, audit retention and export (with an integrity report on Pro), phone alerts, model roles. Plans screen with mock switching; locked features say "Upgrade to unlock"; a downgrade pauses, never deletes.
 
 ## M5 — Intent model layer
 The guard role (v0.5.0) is the first model layer; still to do: evaluation fixtures to measure a guard model's accuracy.

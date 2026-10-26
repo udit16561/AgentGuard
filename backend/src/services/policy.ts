@@ -46,8 +46,10 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
   if (!agent || agent.status !== 'ACTIVE') return deny(423, 'AGENT_PAUSED', 'AGENT_PAUSED', 'This agent is paused');
   if (!operationDef(a.tool, a.operation)) return deny(403, 'PERMISSION_DENIED', 'UNKNOWN_OPERATION', `${a.tool}.${a.operation} is not a known operation`);
 
-  const conn = db.prepare("SELECT 1 FROM tool_connections WHERE user_id = ? AND tool = ? AND status = 'CONNECTED'").get(a.userId, a.tool);
-  if (!conn) return deny(403, 'PERMISSION_DENIED', 'TOOL_NOT_CONNECTED', `${a.tool} is not connected`);
+  const conn = db.prepare("SELECT status FROM tool_connections WHERE user_id = ? AND tool = ?").get(a.userId, a.tool) as { status: string } | undefined;
+  // paused by a downgrade: kept, and unlocked again by an upgrade
+  if (conn?.status === 'PAUSED_PLAN') return deny(402, 'ENTITLEMENT_REQUIRED', 'TOOL_PAUSED_BY_PLAN', `Upgrade to unlock ${a.tool}: it was paused when your plan changed`);
+  if (conn?.status !== 'CONNECTED') return deny(403, 'PERMISSION_DENIED', 'TOOL_NOT_CONNECTED', `${a.tool} is not connected`);
 
   const perm = getPermission(db, a.agentId, a.tool, a.operation);
   if (!perm.allowed) return deny(403, 'PERMISSION_DENIED', 'PERMISSION_NOT_GRANTED', `This agent may not use ${a.tool}.${a.operation}`);

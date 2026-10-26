@@ -60,11 +60,7 @@ Layers: **U** = unit, **I** = API integration (supertest), **E** = end-to-end (P
 | PRM-01 | I | New agent | All permissions `allowed: false` |
 | PRM-02 | I | Toggle a permission | Change saved and audited as `PERMISSION_CHANGED` |
 | PRM-03 | I | Disconnect a tool | All its permissions disabled; pending actions for it blocked |
-| PLN-01 | I | Starter user creates a 2nd agent | `402 ENTITLEMENT_REQUIRED` |
-| PLN-02 | I | Starter user connects Instagram | `402 ENTITLEMENT_REQUIRED` |
-| PLN-03 | I | Pro plan with no tool connected | Agent still can't act: plan ≠ permission |
-| PLN-04 | I | Downgrade Pro → Starter | Extra agents `PAUSED`, data kept |
-| PLN-05 | I | Any plan | Approvals, kill switch and audit are available |
+| PLN-01..12 | I | Plans and entitlements | See §5f |
 
 ## 4. Auth (AUTH)
 
@@ -234,3 +230,23 @@ Push tests use a fake push service; the LAN tests make certificates in a temp fo
 | UI-28 | E | Notification link | Opens that action's Review; HIGH risk still asks for the password |
 | UI-29 | E | Phone layout | One action fills the screen with a back link; decision buttons ≥ 48 px, equal, on screen; kill switch ≥ 56 px in the first screen; short nav labels |
 | UI-30 | E | Settings → Phone alerts | Explains the state; "not set up" without VAPID; says alerts never approve |
+
+## 5f. Added in v0.7.0 (plans and entitlements)
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| PLN-01 | I | Starter creates a 2nd agent; Plus a 4th | `402 ENTITLEMENT_REQUIRED`, "Upgrade to unlock", `upgradeTo` |
+| PLN-02 | I | Tool catalog | Starter: no Instagram or Payments; Plus: Payments but not X (`upgradeTo: pro`); Pro: all |
+| PLN-03 | I | Pro with no tool connected or toggled | Agent still can't act: plan ≠ permission |
+| PLN-04 | I | Pro → Starter → Pro | Preview lists what pauses; extra agents `PAUSED` (pausedByPlan) and tools paused, data kept; paused tool 402; resume past the limit 402; upgrade restores; `PLAN_CHANGED` audited |
+| PLN-05 | I | Starter | Approvals, kill switch, in-app alerts, the live stream and the audit log all work |
+| PLN-06 | I | Plan change | CSRF, known plan, user only; same plan is a no-op |
+| PLN-07 | I | Retention | Starter shows 30 days; older events kept, chain verifies, shown again after upgrade |
+| PLN-08 | I | Export | Starter none; Plus CSV; Pro JSON + integrity report (chain ok, head hash, SHA-256); audited; agent 401 |
+| PLN-09 | I | Phone alerts | Starter 402 (in-app stays); a downgrade stops pushes, devices kept |
+| PLN-10 | I | Model roles | Starter: guard only, local or small model; Plus: guard + agent; downgrade switches the agent role off (`offReason: PLAN`), kept |
+| PLN-11 | I | Plans API | Comparison, current plan, usage, paused items, never-locked list |
+| PLN-12 | U | Rule | No plan names in app logic outside `services/plans.ts` |
+| UI-31 | E | Plans screen | Three plans, current marked, downgrade preview, Paused by plan and Upgrade to unlock in Tools, upgrade restores |
+| UI-32 | E | Audit export | CSV downloads on Plus; JSON and integrity locked |
+| UI-33 | E | Starter | Locks labelled for agents, tools, the Assistant role and export; verify and the kill switch still work |

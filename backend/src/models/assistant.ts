@@ -42,8 +42,8 @@ If a proposal comes back BLOCKED, explain the reason briefly; do not try to get 
 export function agentModel(ctx: Ctx, userId: string) {
   const m = activeModel(ctx, userId, 'agent');
   if (m) return m;
-  const capped = roleState(ctx, userId, 'agent').offReason === 'SPEND_CAP';
-  throw new AppError(409, 'MODEL_UNAVAILABLE', capped ? 'The Assistant is off: its monthly spend cap is reached.' : 'No Assistant model yet. Add one under Settings → Models and give it the agent role.');
+  const off = roleState(ctx, userId, 'agent').offReason;
+  throw new AppError(409, 'MODEL_UNAVAILABLE', off === 'SPEND_CAP' ? 'The Assistant is off: its monthly spend cap is reached.' : off === 'PLAN' ? 'Upgrade to unlock the Assistant: your plan does not include the agent role.' : 'No Assistant model yet. Add one under Settings → Models and give it the agent role.');
 }
 
 export async function runChat(ctx: Ctx, userId: string, body: z.infer<typeof ChatBody>, write: (e: ChatEvent) => void, opts: ProposalOptions = {}) {

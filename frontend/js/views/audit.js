@@ -2,6 +2,7 @@ import { h, icon, clear } from '../dom.js';
 import { api } from '../api.js';
 import { toolName } from '../state.js';
 import { EVENT, fmtTime, fmtDay } from '../format.js';
+import { lockNote } from '../components.js';
 
 /** Read-only, hash-chained audit timeline with an integrity check (J6). There is no edit or delete control. */
 export async function render(view) {
@@ -20,6 +21,15 @@ export async function render(view) {
     } catch (e) { verifyOut.className = 'err'; verifyOut.textContent = e.message; }
     verify.disabled = false;
   });
+  // exports: what the plan includes is a download link; the rest is labelled "Upgrade to unlock"
+  const exportsBox = h('div', { class: 'actions exports', id: 'audit-exports' });
+  const retention = h('p', { class: 'fine', id: 'audit-retention' });
+  api.entitlements().then(ent => {
+    const fmts = [['csv', 'CSV'], ['json', 'JSON'], ['integrity', 'Integrity report']];
+    exportsBox.append(h('span', { class: 'sub-h' }, 'Export'), ...fmts.map(([f, label]) => ent.entitlements.auditExport.includes(f)
+      ? h('a', { class: 'btn sm', href: `/api/audit/export?format=${f}`, download: '', id: `export-${f}` }, icon('arrow', 14), label)
+      : h('span', { class: 'locked-export', id: `export-${f}` }, `${label}: `, lockNote(null))));
+  }).catch(() => {});
   type.addEventListener('change', load);
   tool.addEventListener('change', load);
 
@@ -28,6 +38,8 @@ export async function render(view) {
       h('p', {}, 'Every event, oldest first. Each entry is chained to the one before it, so any change is detectable. Nobody can edit or delete entries, including agents.')),
       verify),
     verifyOut,
+    exportsBox,
+    retention,
     h('section', { class: 'card', 'aria-label': 'Audit events' },
       h('div', { class: 'filters' }, h('label', { class: 'field', for: 'f-type' }, 'Event', type), h('label', { class: 'field', for: 'f-tool' }, 'Tool', tool)),
       list));
@@ -50,7 +62,9 @@ export async function render(view) {
   }
 
   async function load() {
-    const events = await api.audit({ eventType: type.value || undefined, tool: tool.value || undefined, limit: 1000 });
+    const page = await api.auditPage({ eventType: type.value || undefined, tool: tool.value || undefined, limit: 1000 });
+    const events = page.events;
+    clear(retention).append(`Showing the last ${page.retentionDays} days on your plan.`, page.hiddenOlder ? [` ${page.hiddenOlder} older events are kept and still covered by the chain check. `, lockNote(null, 'a longer history')] : '');
     if (!events.length) { clear(list).append(h('p', { class: 'empty' }, 'No events match these filters.')); return; }
     const groups = [];
     for (const e of events) {

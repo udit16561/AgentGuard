@@ -67,7 +67,9 @@ export function roleState(ctx: Ctx, userId: string, role: Role) {
   const model = r.model_config_id ? getModel(ctx, userId, r.model_config_id) ?? null : null;
   const spent = monthSpend(ctx, userId, role);
   const capped = !!model && r.monthly_cap_usd != null && spent >= r.monthly_cap_usd;
-  return { model, cap: r.monthly_cap_usd, spent, active: !!model && !capped, offReason: !model ? null : capped ? 'SPEND_CAP' : null };
+  // after a downgrade the role is kept but switched off until the plan includes it again
+  const planOff = !!model && !ctx.entitlements.can(userId, { feature: 'modelRole', role, model });
+  return { model, cap: r.monthly_cap_usd, spent, active: !!model && !capped && !planOff, offReason: !model ? null : planOff ? 'PLAN' : capped ? 'SPEND_CAP' : null };
 }
 
 export function rolesView(ctx: Ctx, userId: string) {

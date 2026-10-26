@@ -4,3 +4,4 @@ One line per version. Versions follow the plan in `CLAUDE.md` / owner instructio
 
 - **v0.1.0** (2026-10-25, pre-release): Backend M1: permissions, intent/risk, hash-bound approvals with expiry and re-auth, append-only hash-chained audit. Mock adapters only.
 - **v0.2.0** (2026-10-25, pre-release): Frontend PWA in the Countersign design: dashboard with kill switch, review with re-auth and expiry countdown, tools, agents and permissions, audit timeline with verify; demo seed. Mock only.
+- **v0.3.0** (2026-10-26, pre-release): M2: mock adapters for all nine tools with realistic results, a limits form per tool, per-tool previews, "what changed" on re-proposals, opt-in auto-allow for low-risk reads and alarms (audited). Mock only.

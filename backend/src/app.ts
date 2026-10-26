@@ -25,6 +25,7 @@ import { spendingRoutes } from './routes/spending';
 import { anthropicPreferenceModel } from './services/preferences/model';
 import type { PreferenceModel } from './services/preferences/parse';
 import { providerFactory, type ModelFactory } from './models/providers';
+import type { Resolve } from './models/baseUrl';
 import { fakeModelFactory } from './models/fake';
 import { modelRoutes } from './routes/models';
 import { assistantRoutes } from './routes/assistant';
@@ -42,6 +43,8 @@ export interface AppOptions {
   preferenceModelTimeoutMs?: number;
   /** Builds the user's own models (bring your own model). Tests pass AI SDK mock models; the default uses the real providers. */
   modelFactory?: ModelFactory;
+  /** Test hook: DNS for custom base URLs (the default provider factory checks every resolved address at connect time). */
+  resolveHost?: Resolve;
   /** Guard timeout in ms (default 3000). */
   modelTimeoutMs?: number;
   /** Serve ../frontend as static files (default true). */
@@ -85,7 +88,7 @@ export async function createApp(options: AppOptions = {}) {
     ?? (config.preferenceModelProvider === 'anthropic' && config.preferenceModelApiKey ? anthropicPreferenceModel(config.preferenceModelApiKey, config.preferenceModel) : undefined);
   // the fake factory exists for the browser tests only: NODE_ENV=test and MODEL_PROVIDER_MODE=fake, never otherwise
   const modelFactory = options.modelFactory
-    ?? (config.nodeEnv === 'test' && process.env.MODEL_PROVIDER_MODE === 'fake' ? fakeModelFactory() : providerFactory());
+    ?? (config.nodeEnv === 'test' && process.env.MODEL_PROVIDER_MODE === 'fake' ? fakeModelFactory() : providerFactory({ resolveHost: options.resolveHost }));
   const ctx: Ctx = {
     db, clock, config, audit: createAuditService(db, clock), preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs,
     modelFactory, modelTimeoutMs: options.modelTimeoutMs

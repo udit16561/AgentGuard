@@ -4,6 +4,7 @@ import type { Ctx } from '../context';
 import { INTENTS, type ModelClassifier } from '../services/intent';
 import { Flat, PREFERENCE_SYSTEM } from '../services/preferences/model';
 import type { PreferenceModel } from '../services/preferences/parse';
+import { BlockedAddressError } from './baseUrl';
 import { activeModel, recordUsage, specOf, type ModelRow } from './store';
 import type { Role } from './catalog';
 
@@ -93,6 +94,8 @@ export const ERROR_TEXT: Record<ModelError, string> = {
   PROVIDER_ERROR: 'The provider returned an error.'
 };
 export function classifyError(e: unknown): ModelError {
+  // a refused private address can sit several causes deep (provider error → fetch failed → lookup)
+  for (let c: unknown = e, i = 0; c && i < 6; c = (c as { cause?: unknown }).cause, i++) if (c instanceof BlockedAddressError) return 'BLOCKED_URL';
   if (APICallError.isInstance(e)) {
     const s = e.statusCode ?? 0;
     return s === 401 || s === 403 ? 'INVALID_KEY' : s === 404 ? 'MODEL_NOT_FOUND' : s === 429 ? 'RATE_LIMITED' : s === 0 ? 'UNREACHABLE' : 'PROVIDER_ERROR';

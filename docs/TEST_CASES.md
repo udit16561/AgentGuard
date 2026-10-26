@@ -196,6 +196,11 @@ All model tests use AI SDK mock models (`backend/tests/models/mocks.ts`); no tes
 | MOD-BYO-19 | U/I | SSRF | Private, link-local, CGNAT, internal and non-https URLs refused; https and http://localhost allowed; a name resolving to a private address refused at call time |
 | MOD-BYO-20 | I | Spend cap | Reaching the monthly cap switches the role off (audited by SYSTEM); deterministic rules take over |
 | MOD-BYO-21 | I | Rotate and delete | Rotation keeps the model and is audited; delete needs re-auth and clears the role |
+| MOD-BYO-22 | U | DNS rebinding | The connect-time lookup refuses a private answer even after a public one; mixed answers refused; localhost URLs reach loopback only |
+| MOD-BYO-23 | I | Real provider, private DNS answer | Test connection fails with `BLOCKED_URL` before any socket opens |
+| MOD-BYO-24 | U | Embedded private IPv6 | `::a00:1`, `::127.0.0.1`, mapped and NAT64 forms count as private |
+| MOD-BYO-25 | I | Provider error in the Assistant | Not logged; the user sees `INVALID_KEY` |
+| MOD-BYO-26 | I | Query string or fragment in a base URL | Refused; nothing reaches the audit |
 | UI-21 | E | Settings → Models | Add a model, masked key, Test connection, assign roles |
 | UI-22 | E | Failures and warnings | Bad key fails, prose-only model not offered as guard, same-provider warning |
 | UI-23 | E | Assistant | "pay Ravi ₹500" becomes a proposal card that waits in Review (`PENDING_REVIEW`) |

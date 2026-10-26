@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS agents (
   model TEXT,
   api_key_hash TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'ACTIVE',
+  kind TEXT NOT NULL DEFAULT 'external',
   created_at INTEGER NOT NULL
 );
 
@@ -98,6 +99,43 @@ CREATE TABLE IF NOT EXISTS tool_preferences (
   updated_at INTEGER NOT NULL,
   UNIQUE (user_id, tool)
 );
+
+-- bring your own model (docs/MODEL_PROVIDERS.md): keys are AES-256-GCM encrypted; only the last 4 characters are kept in clear
+CREATE TABLE IF NOT EXISTS model_configs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  provider TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  base_url TEXT,
+  api_key_enc TEXT,
+  key_last4 TEXT,
+  last_test_at INTEGER,
+  last_test_ok INTEGER,
+  guard_capable INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS model_roles (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT NOT NULL,
+  model_config_id TEXT REFERENCES model_configs(id),
+  monthly_cap_usd REAL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role)
+);
+
+CREATE TABLE IF NOT EXISTS model_usage (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  role TEXT,
+  model_config_id TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL,
+  output_tokens INTEGER NOT NULL,
+  cost_usd REAL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS model_usage_user ON model_usage (user_id, role, created_at);
 
 CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY,

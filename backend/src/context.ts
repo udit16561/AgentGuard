@@ -3,6 +3,7 @@ import type { Clock } from './clock';
 import type { Config } from './config';
 import type { AuditService } from './services/audit';
 import type { PreferenceModel } from './services/preferences/parse';
+import type { ModelFactory } from './models/providers';
 
 /** Everything a route or service needs, built once per app in createApp. */
 export interface Ctx {
@@ -13,6 +14,10 @@ export interface Ctx {
   /** optional preference parser model (falls back to the deterministic parser on any error) */
   preferenceModel?: PreferenceModel;
   preferenceModelTimeoutMs?: number;
+  /** builds the user's own models (docs/MODEL_PROVIDERS.md); tests pass AI SDK mock models */
+  modelFactory: ModelFactory;
+  /** guard timeout (3 s by default) */
+  modelTimeoutMs?: number;
 }
 
 export interface UserRow {
@@ -23,7 +28,7 @@ export interface SessionRow {
   id: string; token_hash: string; user_id: string; csrf_token: string; reauth_at: number | null; expires_at: number; created_at: number;
 }
 export interface AgentRow {
-  id: string; user_id: string; name: string; model: string | null; api_key_hash: string; status: 'ACTIVE' | 'PAUSED' | 'REVOKED'; created_at: number;
+  id: string; user_id: string; name: string; model: string | null; api_key_hash: string; status: 'ACTIVE' | 'PAUSED' | 'REVOKED'; kind?: 'external' | 'assistant'; created_at: number;
 }
 
 declare module 'express-serve-static-core' {

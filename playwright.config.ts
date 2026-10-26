@@ -18,7 +18,7 @@ export default defineConfig({
     command: 'npx tsx src/server.ts',
     cwd: 'backend',
     url: `http://localhost:${PORT}/api/health`,
-    env: { PORT: String(PORT), DATABASE_URL: 'file::memory:', NODE_ENV: 'test', INTEGRATION_MODE: 'mock' },
+    env: { PORT: String(PORT), DATABASE_URL: 'file::memory:', NODE_ENV: 'test', INTEGRATION_MODE: 'mock', MODEL_PROVIDER_MODE: 'fake' },
     reuseExistingServer: false,
     timeout: 60_000
   }

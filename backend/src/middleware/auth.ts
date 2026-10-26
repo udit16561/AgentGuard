@@ -60,3 +60,12 @@ export function requireAgent(req: Request, _res: Response, next: NextFunction) {
   if (!req.agent) return next(new AppError(401, 'UNAUTHENTICATED', 'A valid agent API key is required'));
   next();
 }
+
+/** Sensitive settings (model API keys) need a password check within the re-auth window, as high-risk approvals do. */
+export function requireReauth(ctx: Ctx) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const at = req.session?.reauth_at;
+    if (!at || ctx.clock.now() - at > ctx.config.reauthWindowMinutes * 60_000) return next(new AppError(401, 'REAUTH_REQUIRED', 'Confirm your password first'));
+    next();
+  };
+}

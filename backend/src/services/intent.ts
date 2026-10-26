@@ -147,7 +147,7 @@ export function classifyRules(input: ClassifyInput): Classification {
   return { intent: def.intent, riskLevel: levelOf(score), riskScore: score, confidence: 0.9, reasons, flags: [...flags], needsReview };
 }
 
-const INTENTS = ['READ_DATA', 'SEND_MESSAGE', 'SEND_EMAIL', 'PUBLISH_CONTENT', 'EDIT_CONTENT', 'DELETE_CONTENT', 'SCHEDULE_EVENT', 'MODIFY_EVENT',
+export const INTENTS = ['READ_DATA', 'SEND_MESSAGE', 'SEND_EMAIL', 'PUBLISH_CONTENT', 'EDIT_CONTENT', 'DELETE_CONTENT', 'SCHEDULE_EVENT', 'MODIFY_EVENT',
   'CANCEL_EVENT', 'SET_REMINDER', 'MAKE_PAYMENT', 'REFUND', 'SUBSCRIBE', 'CONNECT_SOCIAL', 'UNKNOWN'] as const;
 /** Strict schema for the model layer's output; anything else is ignored and fails closed. */
 const ModelOutput = z.object({

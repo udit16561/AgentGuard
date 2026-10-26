@@ -36,6 +36,10 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - **Execution**: id, actionId, adapterMode (`MOCK|LIVE`), providerRef, result, error, finishedAt
 - **AuditEvent**: id, seq, actorType (`USER|AGENT|SYSTEM`), actorId, eventType, actionId?, data (JSON, secrets redacted), prevHash, hash, createdAt
 - **Plan**: id, name, entitlements (JSON)
+- **ModelConfig**: id, userId, provider, modelId, label, baseUrl?, apiKeyEnc (AES-256-GCM), keyLast4, lastTestAt, lastTestOk, guardCapable, createdAt
+- **ModelRole**: userId, role (`agent|guard`), modelConfigId?, monthlyCapUsd?
+- **ModelUsage**: id, userId, role?, modelConfigId, inputTokens, outputTokens, costUsd?, createdAt
+- **Agent.kind**: `external` (default) or `assistant` (the built-in Assistant)
 
 ## 3. API endpoints
 
@@ -70,6 +74,15 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - `GET /api/audit/export` (Pro only)
 - **No** PUT/PATCH/DELETE routes exist for audit.
 
+### Models (user; docs/MODEL_PROVIDERS.md)
+- `GET /api/models/catalog` → `{ checkedOn, providers[], models[] }` (approx. prices per 1M tokens)
+- `GET /api/models` → `{ models[] (keyHint only), roles: { agent, guard: { model, cap, spent, active, offReason } }, warnings[] }` (`SAME_PROVIDER`)
+- `POST /api/models` body `{ provider, modelId, apiKey?, baseUrl?, label }` → 201 (CSRF + re-auth)
+- `POST /api/models/:id/test` → `{ ok, error?, message?, guard: { passed, cases: 5, failed } }` (CSRF + re-auth)
+- `PUT /api/models/roles` body `{ agent: id|null, guard: id|null, caps?: { agent?, guard? } }` (CSRF; a role needs a passed test, the guard also the capability test)
+- `PUT /api/models/:id/key` body `{ apiKey }` (rotate; CSRF + re-auth) · `DELETE /api/models/:id` (CSRF + re-auth; clears its roles)
+- `POST /api/assistant/chat` body `{ messages[] }` → `application/x-ndjson` events `text`, `proposal`, `error`, `done`; 409 `MODEL_UNAVAILABLE` with no agent model or a reached cap
+
 ### Plans
 - `GET /api/plans` · `GET /api/me/entitlements` · `POST /api/me/plan` (mock billing)
 
@@ -77,7 +90,7 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - `GET /api/stream` (SSE: new alerts, status changes)
 
 ## 4. Testability contract (required by `backend/tests/`)
-- `src/app.ts` exports `createApp({ dbPath, clock?, classifier?, adapters?, preferenceModel?, preferenceModelTimeoutMs? })` returning `{ app, clock, db }`. `clock.advanceMinutes(n)` moves time forward for expiry tests; `createClock(startMs)` pins "now" for time-of-day tests. `adapters` lets a test swap in a mock adapter (for example one that returns no provider reference, for SEC-25).
+- `src/app.ts` exports `createApp({ dbPath, clock?, classifier?, adapters?, preferenceModel?, preferenceModelTimeoutMs?, modelFactory?, modelTimeoutMs? })` returning `{ app, clock, db }`. `clock.advanceMinutes(n)` moves time forward for expiry tests; `createClock(startMs)` pins "now" for time-of-day tests. `adapters` lets a test swap in a mock adapter (for example one that returns no provider reference, for SEC-25). `modelFactory` maps a stored model config to an AI SDK model, so tests pass mock models and never call a provider.
 - `src/services/intent.ts` exports `classify({ tool, operation, payload, context })`.
 - The audit table is named `audit_events` and has a `seq` column that starts at 1.
 - `GET /api/actions/:id` (user) includes `payloadHash`, `riskLevel` and `execution` (`null` until run).

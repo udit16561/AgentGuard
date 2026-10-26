@@ -16,10 +16,14 @@ Repo layout, `.gitignore`, `.env.example`, lint, test runners, health endpoint, 
 ## M2 — All mock tools
 Gmail, Calendar, Clock, WhatsApp, Instagram, LinkedIn, X, Blog adapters in MOCK mode; permission limits UI.
 
-## M3 — Plans & entitlements
+## M2b — Tool preferences and payment limits (v0.4.0)
+Payment limits: per-transaction max, daily/weekly/monthly caps, payee rules (allowed, per-payee cap, block or ask for new payees), methods, blocked categories, allowed hours, PIN above a threshold, spend vs. caps on the dashboard.
+Tool preferences: free text per tool → deterministic parser (optional small model) → user confirms the rules → every proposal is checked (exact checks, TF-IDF topics, tone lexicon). A broken rule raises risk; a hard rule blocks; nothing is ever approved by a preference. See docs/PREFERENCES.md.
+
+## M3 — Plans & entitlements (v0.5.0)
 Starter/Plus/Pro, gating, locked-feature UI.
 
-## M4 — Realtime + PWA
+## M4 — Realtime + PWA (v0.6.0)
 SSE alerts, web push, installable on PC/mobile, offline shell.
 
 ## M5 — Intent model layer

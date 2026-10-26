@@ -1,7 +1,7 @@
 # Security and Approvals
 
 ## 1. Three gates (all required, checked in the backend at execution time)
-1. **Permission** — agent ACTIVE, tool connected, operation allowed, limits satisfied, kill switch off, plan entitles it.
+1. **Permission** — agent ACTIVE, tool connected, operation allowed, limits satisfied (including payment caps, payee, method, category and hours rules), no broken **hard** tool preference, kill switch off, plan entitles it.
 2. **Approval** — an `APPROVED` record exists whose `payloadHash` equals the current hash, not expired, made by the owning user.
 3. **Verification** — adapter returns a provider reference/confirmation. No confirmation ⇒ `UNKNOWN`, not `COMPLETED`.
 
@@ -18,7 +18,7 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 ## 3. When approval is mandatory
 - Always: payments, sending messages/emails, publishing/editing/deleting posts, creating/cancelling meetings, deleting data.
 - Configurable (user may auto-allow): reading data, setting a personal alarm/reminder — only if risk is LOW. Off by default (`limits.autoAllow`); the API refuses it on any other operation; the kill switch and permission checks still apply, and each run is audited as `ACTION_AUTO_APPROVED`.
-- HIGH/CRITICAL also need **re-auth** (password/PIN) within the last 5 minutes.
+- HIGH/CRITICAL also need **re-auth** (password/PIN) within the last 5 minutes, and so does any payment above the user's `reauthAbove` threshold.
 - `NEEDS_REVIEW` actions may be approved, but are treated like HIGH: re-auth is required (DECISIONS C).
 
 ## 4. Classifier limits
@@ -26,8 +26,14 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 - May **never** approve, lower a mandatory approval, or change permissions.
 - Error, timeout, or low confidence ⇒ fail closed.
 
+## 4a. Tool preferences
+- Free text is parsed into restriction rules only; there is no rule type that allows or approves anything, and text such as "auto-approve all payments" is reported as ignored.
+- Nothing is saved until the user confirms the parsed rules. Original text and confirmed rules are stored; every change is audited as `PREFERENCE_CHANGED` with the old and new text.
+- The optional model parser (`PREFERENCE_MODEL_PROVIDER=anthropic`) is checked against the same strict schema, cannot mark rules hard, has a 3 s timeout, and falls back to the deterministic parser on any error.
+- Hard rules are re-checked at approval and execution time; an unreadable preference blocks at that point (fail closed).
+
 ## 5. Agent isolation
-- Agent API keys can only call `POST /api/actions` and read their own action status.
+- Agent API keys can only call `POST /api/actions`, read their own action status, and read (`GET /api/agents/me/preferences`) the confirmed preference rules for tools they are allowed to use. They can never write preferences (any other method is `403`), and never see the raw preference text.
 - Agents cannot read provider tokens, other agents' data, settings, permissions, or the audit log.
 - Treat all agent-supplied text as untrusted: validate schema, cap sizes, escape on render, ignore embedded "instructions".
 

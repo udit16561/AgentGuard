@@ -13,6 +13,9 @@ export async function render(view) {
   const recent = h('div', { class: 'rows', id: 'recent' });
   const agentList = h('div', { class: 'rows', id: 'agents' });
   const killCard = h('section', { class: 'card kill', 'aria-labelledby': 'kill-h' });
+  const spendBox = h('div', { class: 'rows' });
+  const spendCard = h('section', { class: 'card', id: 'spending', 'aria-labelledby': 'sp-h' },
+    h('div', { class: 'card-h' }, h('h2', { id: 'sp-h' }, 'Spending against your caps'), h('a', { class: 'link', href: '#/agents' }, 'Set caps', icon('arrow', 14))), spendBox);
   let agents = await api.agents();
   let sig = '';
 
@@ -25,8 +28,32 @@ export async function render(view) {
     h('div', { class: 'grid-3' },
       h('section', { class: 'card', 'aria-labelledby': 'w-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'w-h' }, 'Needs your decision'), h('a', { class: 'link', href: '#/review' }, 'Review all', icon('arrow', 14))), waiting),
       h('section', { class: 'card', 'aria-labelledby': 'r-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'r-h' }, 'Recent actions'), h('a', { class: 'link', href: '#/audit' }, 'Audit log', icon('arrow', 14))), recent),
-      h('section', { class: 'card', 'aria-labelledby': 'a-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'a-h' }, 'Agents'), h('a', { class: 'link', href: '#/agents' }, 'Manage', icon('arrow', 14))), agentList))
+      h('section', { class: 'card', 'aria-labelledby': 'a-h' }, h('div', { class: 'card-h' }, h('h2', { id: 'a-h' }, 'Agents'), h('a', { class: 'link', href: '#/agents' }, 'Manage', icon('arrow', 14))), agentList)),
+    spendCard
   );
+
+  // whole rupees stay short ("₹10,000"); paise only when there are some
+  const cash = (n, currency) => { try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n); } catch { return `${n} ${currency}`; } };
+  function meter(id, label, spent, cap, currency) {
+    const pct = cap ? Math.min(100, (spent / cap) * 100) : 0;
+    const fill = h('span', { class: 'fill' });
+    fill.style.width = `${pct}%`;   // CSSOM, allowed by the CSP
+    const level = !cap ? '' : spent >= cap ? ' full' : pct >= 80 ? ' near' : '';
+    return h('div', { class: `spend${level}`, id },
+      h('p', { class: 'spend-t' }, h('b', {}, label), cap ? `${cash(spent, currency)} of ${cash(cap, currency)}` : `${cash(spent, currency)} · no cap`),
+      cap ? h('span', { class: 'meter', role: 'meter', 'aria-label': `${label}: spent of cap`, 'aria-valuemin': '0', 'aria-valuemax': String(cap), 'aria-valuenow': String(spent) }, fill) : null);
+  }
+  async function renderSpending() {
+    let data;
+    try { data = await api.spending(); } catch { return; }
+    clear(spendBox).append(...(data.agents.length ? data.agents.map(a => h('div', { class: 'spend-agent' },
+      h('p', { class: 't' }, icon('payments', 16), ' ', a.agentName),
+      h('div', { class: 'spend-grid' },
+        meter(`spend-${a.agentId}-today`, 'Today', a.today, a.caps.daily, data.currency),
+        meter(`spend-${a.agentId}-week`, 'This week', a.week, a.caps.weekly, data.currency),
+        meter(`spend-${a.agentId}-month`, 'This month', a.month, a.caps.monthly, data.currency))))
+      : [h('p', { class: 'empty' }, 'No agent may make payments yet.')]));
+  }
 
   const row = a => h('a', { class: 'row', href: `#/review/${encodeURIComponent(a.id)}` }, h('span', { class: 'ic' }, toolIcon(a.tool)),
     h('span', { class: 'grow' }, h('span', { class: 't' }, actionTitle(a)), h('span', { class: 'm' }, `${a.agentName ?? 'Agent'} · ${fmtTime(a.createdAt)}`)),
@@ -71,6 +98,7 @@ export async function render(view) {
     clear(heroPills).append(h('span', { class: 'pill' }, `${high} high or critical`), h('span', { class: 'pill' }, `${open.filter(a => a.status === 'NEEDS_REVIEW').length} need review`));
     clear(heroCta).append(open.length ? h('a', { class: 'btn', href: `#/review/${encodeURIComponent(open[0].id)}` }, 'Start reviewing', icon('arrow', 16)) : h('p', {}, h('b', {}, 'All caught up.')));
     clear(waiting).append(...(open.length ? open.slice(0, 5).map(row) : [h('p', { class: 'empty' }, 'Nothing is waiting for you.')]));
+    renderSpending();
     clear(recent).append(...(actions.length ? actions.slice(0, 6).map(row) : [h('p', { class: 'empty' }, 'No actions yet. Your agents’ proposals appear here.')]));
   }
 

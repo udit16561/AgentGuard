@@ -2,6 +2,7 @@ import type { Db } from './db';
 import type { Clock } from './clock';
 import type { Config } from './config';
 import type { AuditService } from './services/audit';
+import type { PreferenceModel } from './services/preferences/parse';
 
 /** Everything a route or service needs, built once per app in createApp. */
 export interface Ctx {
@@ -9,6 +10,9 @@ export interface Ctx {
   clock: Clock;
   config: Config;
   audit: AuditService;
+  /** optional preference parser model (falls back to the deterministic parser on any error) */
+  preferenceModel?: PreferenceModel;
+  preferenceModelTimeoutMs?: number;
 }
 
 export interface UserRow {

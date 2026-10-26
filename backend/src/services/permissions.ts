@@ -4,6 +4,7 @@ import { CATALOG } from './catalog';
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM');
 const names = z.array(z.string().trim().min(1).max(254)).max(500);
+export const PAYMENT_METHODS = ['upi', 'card', 'netbanking', 'wallet'] as const;
 
 /** Limits a user can attach to one permission (docs/ARCHITECTURE_AND_API.md §2). Unknown keys are refused. */
 export const Limits = z.object({
@@ -21,7 +22,19 @@ export const Limits = z.object({
   /** true: outside timeWindow is blocked; otherwise it only raises the risk */
   enforceHours: z.boolean().optional(),
   /** LOW-risk reads and alarms only (see AUTO_ALLOW_INTENTS); still fully audited */
-  autoAllow: z.boolean().optional()
+  autoAllow: z.boolean().optional(),
+  // payments (v0.4.0): caps are per agent and tool, in the limit's currency; going over one is BLOCKED
+  weeklyCap: z.number().positive().optional(),
+  monthlyCap: z.number().positive().optional(),
+  /** most one payee may receive in a calendar month, by payee name (case-insensitive) */
+  payeeCaps: z.record(z.string().trim().min(1).max(254), z.number().positive()).refine(o => Object.keys(o).length <= 200, 'At most 200 payees').optional(),
+  /** a payee not in knownPayees/allowedPayees: "approve" (default) raises the risk, "block" refuses it */
+  newPayees: z.enum(['approve', 'block']).optional(),
+  allowedMethods: z.array(z.enum(PAYMENT_METHODS)).max(4).optional(),
+  /** a named category here is BLOCKED; the same words in the payee or note only raise the risk */
+  blockedCategories: names.optional(),
+  /** above this amount the password (PIN) is always required, whatever the risk */
+  reauthAbove: z.number().positive().optional()
 }).strict();
 
 /** The only intents a user may auto-allow (docs/SECURITY_AND_APPROVALS.md §3). */

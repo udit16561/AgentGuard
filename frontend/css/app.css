@@ -330,3 +330,33 @@ a.row:hover{border-color:var(--line-2)}
 .result dd{overflow-wrap:anywhere;font-family:var(--mono);font-size:13px}
 .tool-limits{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 14px 10px;font-size:12.5px;color:var(--muted)}
 .auto{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+
+/* v0.4.0: tool preferences */
+.pref{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.pref .actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pref-saved .flag{margin-left:6px}
+.pref-rules{display:flex;flex-direction:column;gap:8px}
+.pref-rules li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.pref-rules .grow{flex:1;min-width:160px;font-weight:700}
+.pref-rules .hard{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.pref-results{display:flex;flex-direction:column;gap:8px}
+.pref-results li{display:flex;align-items:flex-start;gap:8px}
+.pref-results li svg{flex:none;margin-top:3px}
+.pref-results .broken svg{color:var(--red)}
+.pref-results .followed svg{color:var(--green)}
+.pref-results .flag{margin-left:6px}
+
+/* v0.4.0: spending against caps (values are always in the text; the bar only repeats them) */
+.spend-agent{display:flex;flex-direction:column;gap:8px}
+.spend-agent .t{display:flex;align-items:center;gap:6px;font-weight:800}
+.spend-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.spend{display:flex;flex-direction:column;gap:6px;min-width:0}
+.spend-t{display:flex;flex-direction:column;font-size:14px;font-variant-numeric:tabular-nums}
+.spend-t b{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.meter{display:block;height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.meter .fill{display:block;height:100%;width:0;border-radius:4px;background:var(--brand)}
+.spend.near .meter .fill{background:var(--amber)}
+.spend.full .meter .fill{background:var(--red)}
+.spend.full .spend-t{color:var(--red)}
+@media (max-width:640px){.spend-grid{grid-template-columns:1fr}}
+.methods{display:flex;flex-wrap:wrap;gap:6px 18px}

@@ -72,7 +72,9 @@ export async function runChat(ctx: Ctx, userId: string, body: z.infer<typeof Cha
   try {
     const result = streamText({
       model: ctx.modelFactory(specOf(ctx, m)), system: systemPrompt(allowed), messages: body.messages,
-      tools: { propose_action }, stopWhen: isStepCount(MAX_STEPS), maxRetries: 0, abortSignal: AbortSignal.timeout(CHAT_TIMEOUT_MS)
+      tools: { propose_action }, stopWhen: isStepCount(MAX_STEPS), maxRetries: 0, abortSignal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+      // the SDK's default onError console.errors the whole provider error, which can echo the key; errors are reported below as safe categories
+      onError: () => {}
     });
     let failure: unknown = null;
     for await (const part of result.fullStream) {

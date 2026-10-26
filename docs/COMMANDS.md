@@ -58,10 +58,13 @@ Add these to `backend/package.json` under `"scripts"`:
 cd backend
 npm run db:migrate          # create or update tables
 npm run db:seed             # demo user, agent and mock tools (MOCK mode)
-npm run dev                 # API at http://localhost:4000
+npm run dev                 # app and API at http://localhost:4000 (the backend also serves the frontend)
 
-# In a second terminal, serve the frontend
-npx serve frontend -l 5173  # or: npx http-server frontend -p 5173
+# On your phone, same Wi-Fi (v0.6.0): HTTPS on the LAN IP, needed for the service worker and Web Push
+npm run dev:lan             # prints http://<LAN-IP>:4080 (install the dev certificate once) and https://<LAN-IP>:4443
+#   First run adds VAPID keys, TOKEN_ENCRYPTION_KEY and DATABASE_URL to backend/.env (git-ignored).
+#   Certificates live in backend/.certs/ (git-ignored). Set LAN_IP=... to pick another address.
+#   Demo agent against it: AGENTGUARD_URL=https://localhost:4443 NODE_EXTRA_CA_CERTS=.certs/agentguard-dev-ca.crt npm run demo:agent -- pay 500 Ravi
 ```
 
 ## 4. Testing

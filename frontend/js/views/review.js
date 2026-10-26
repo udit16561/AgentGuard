@@ -20,7 +20,9 @@ export async function render(view, selectedId) {
 
   view.append(
     h('div', { class: 'head' }, h('div', {}, h('h1', { id: 'title', tabindex: '-1' }, 'Review'), h('p', {}, 'Check the exact details, then approve or reject. Nothing is approved by default.'))),
-    h('div', { class: 'review' },
+    // opened for one action (a notification or a link): on a phone that action gets the whole screen
+    selectedId ? h('a', { class: 'link review-back', href: '#/review', id: 'review-back' }, '← All requests') : null,
+    h('div', { class: `review${selectedId ? ' one' : ''}` },
       h('section', { class: 'card queue', 'aria-label': 'Proposed actions' }, h('div', { class: 'seg', role: 'group', 'aria-label': 'Which actions to list' }, segOpen, segAll), queue),
       detail));
 

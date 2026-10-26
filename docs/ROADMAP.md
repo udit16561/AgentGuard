@@ -23,11 +23,11 @@ Tool preferences: free text per tool → deterministic parser (optional small mo
 ## M2c — Bring your own model (v0.5.0)
 Settings → Models: the user's own provider and API key (encrypted, masked), suggested models from `backend/src/models/catalog.json` or any model ID, Test connection with a structured-output capability test, and two optional roles. **Guard:** the intent/risk model layer and the preference parser (raise-only, falls back to the deterministic rules). **Agent:** the Assistant chat, just another agent whose tool calls become proposals. SSRF-checked base URLs, optional monthly spend cap per role, audit without keys. See docs/MODEL_PROVIDERS.md.
 
-## M3 — Plans & entitlements (v0.6.0)
-Starter/Plus/Pro, gating, locked-feature UI.
+## M4 — Realtime + PWA (v0.6.0)
+Alerts on the phone are the core of the app, so this comes before plans. Installable PWA (manifest, icons, service worker caching static files only), offline read-only shell, live alerts over SSE, Web Push (VAPID) that opens the Review screen and never approves, phone layout for review and the kill switch, `npm run dev:lan` for HTTPS on the LAN.
 
-## M4 — Realtime + PWA (v0.7.0)
-SSE alerts, web push, installable on PC/mobile, offline shell.
+## M3 — Plans & entitlements (v0.7.0)
+Starter/Plus/Pro, gating, locked-feature UI.
 
 ## M5 — Intent model layer
 The guard role (v0.5.0) is the first model layer; still to do: evaluation fixtures to measure a guard model's accuracy.

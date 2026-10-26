@@ -29,6 +29,10 @@ import type { Resolve } from './models/baseUrl';
 import { fakeModelFactory } from './models/fake';
 import { modelRoutes } from './routes/models';
 import { assistantRoutes } from './routes/assistant';
+import { createEventBus } from './services/events';
+import { pushOnAlert, webPushSender, type PushSender } from './services/notify';
+import { pushRoutes } from './routes/push';
+import { streamRoutes } from './routes/stream';
 
 export interface AppOptions {
   dbPath?: string;
@@ -45,6 +49,8 @@ export interface AppOptions {
   modelFactory?: ModelFactory;
   /** Test hook: DNS for custom base URLs (the default provider factory checks every resolved address at connect time). */
   resolveHost?: Resolve;
+  /** Test hook: replaces the Web Push sender, so no test reaches a push service. */
+  pushSender?: PushSender;
   /** Guard timeout in ms (default 3000). */
   modelTimeoutMs?: number;
   /** Serve ../frontend as static files (default true). */
@@ -89,10 +95,20 @@ export async function createApp(options: AppOptions = {}) {
   // the fake factory exists for the browser tests only: NODE_ENV=test and MODEL_PROVIDER_MODE=fake, never otherwise
   const modelFactory = options.modelFactory
     ?? (config.nodeEnv === 'test' && process.env.MODEL_PROVIDER_MODE === 'fake' ? fakeModelFactory() : providerFactory({ resolveHost: options.resolveHost }));
+  // every audited change is announced: to open dashboards (SSE) and, for new alerts, to the user's phones (Web Push)
+  const events = createEventBus();
+  let onPush: ReturnType<typeof pushOnAlert> | null = null;
+  const audit = createAuditService(db, clock, e => {
+    if (e.userId) events.publish({ userId: e.userId, eventType: e.eventType, actionId: e.actionId ?? null });
+    onPush?.(e);
+  });
   const ctx: Ctx = {
-    db, clock, config, audit: createAuditService(db, clock), preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs,
+    db, clock, config, audit, preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs,
     modelFactory, modelTimeoutMs: options.modelTimeoutMs
   };
+  ctx.pushSender = options.pushSender ?? webPushSender(ctx);
+  onPush = pushOnAlert(ctx);
+  app.locals.events = events;
   app.use(loadSession(ctx));
   app.use(loadAgent(ctx));
 
@@ -110,11 +126,17 @@ export async function createApp(options: AppOptions = {}) {
   app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));
   app.use('/api/kill-switch', killSwitchRoutes(ctx));
   app.use('/api/models', modelRoutes(ctx));
+  app.use('/api/stream', streamRoutes(ctx, events));
+  app.use('/api/push', pushRoutes(ctx));
   app.use('/api/assistant', assistantRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));
 
   // the PWA is served from the same origin, so the session cookie stays SameSite=Strict with no CORS needed
   const frontendDir = findFrontend();
-  if (frontendDir && options.serveFrontend !== false) app.use(express.static(frontendDir, { index: 'index.html', dotfiles: 'ignore' }));
+  if (frontendDir && options.serveFrontend !== false) app.use(express.static(frontendDir, {
+    index: 'index.html', dotfiles: 'ignore',
+    // the service worker must always be re-checked, or a fixed version could never replace it
+    setHeaders: (res, file) => { if (file.endsWith(`${path.sep}sw.js`)) res.setHeader('Cache-Control', 'no-cache'); }
+  }));
 
   app.use((_req, _res, next) => next(notFound('Route not found')));
   app.use(errorHandler);

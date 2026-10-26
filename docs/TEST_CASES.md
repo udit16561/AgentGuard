@@ -204,3 +204,33 @@ All model tests use AI SDK mock models (`backend/tests/models/mocks.ts`); no tes
 | UI-21 | E | Settings → Models | Add a model, masked key, Test connection, assign roles |
 | UI-22 | E | Failures and warnings | Bad key fails, prose-only model not offered as guard, same-provider warning |
 | UI-23 | E | Assistant | "pay Ravi ₹500" becomes a proposal card that waits in Review (`PENDING_REVIEW`) |
+
+## 5e. Added in v0.6.0 (PWA and live alerts)
+
+Push tests use a fake push service; the LAN tests make certificates in a temp folder. No test reaches the network.
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| RT-01 | I | Stream access | Anonymous and agent keys get 401 |
+| RT-02 | I | New proposal | `change` event with only `{ eventType, actionId }` at once; no payload text |
+| RT-03 | I | Isolation | A user never receives another user's events |
+| RT-04 | I | Kill switch | Streamed |
+| RT-05 | I | Page closed | The listener is released |
+| PUSH-01 | I | VAPID key | Offered when configured; off without keys; agent 401 |
+| PUSH-02 | I | Subscribe | CSRF; push-service https hosts only (no SSRF); bad keys refused; same endpoint updates; audited without keys |
+| PUSH-03 | I | Agent key | Cannot subscribe or unsubscribe |
+| PUSH-04 | I | Unsubscribe | No more pushes |
+| PUSH-05 | I | Pending payment | "Helper wants to pay ₹500 to Ravi — Review", opens `/#/review/<id>`, only a Review action, no note text; the action stays pending |
+| PUSH-06 | I | Which alerts | NEEDS_REVIEW pushes; blocked and auto-allowed do not |
+| PUSH-07 | I | Push failures | Never break the proposal; 410 removes the device |
+| PUSH-08 | I | No VAPID keys | Subscribe 409; nothing sent |
+| PUSH-09 | U | Notification text | Short plain text, no control characters, no message bodies |
+| LAN-01 | U | LAN address | A private IPv4 on a real adapter, preferring 192.168.x.x |
+| LAN-02 | U | Dev certificates | CA + server cert for the LAN IP and localhost, signed by the CA, ≤ 397 days, CA reused, server cert remade for a new IP |
+| UI-24 | E | Live alerts | "Live" on the dashboard; a new proposal shows within 3 s |
+| UI-25 | E | Installable | Manifest with 192/512 PNG and maskable icons; service worker active; no `/api` in its cache |
+| UI-26 | E | Offline | Read-only shell, nothing to approve; recovers when online |
+| UI-27 | E | Worker rules | Static files only; a tap opens only a Review URL; every module precached; no approve code in the worker |
+| UI-28 | E | Notification link | Opens that action's Review; HIGH risk still asks for the password |
+| UI-29 | E | Phone layout | One action fills the screen with a back link; decision buttons ≥ 48 px, equal, on screen; kill switch ≥ 56 px in the first screen; short nav labels |
+| UI-30 | E | Settings → Phone alerts | Explains the state; "not set up" without VAPID; says alerts never approve |

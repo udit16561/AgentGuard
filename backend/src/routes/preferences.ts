@@ -8,6 +8,7 @@ import { newId } from '../services/canonical';
 import { MAX_RULES, MAX_TEXT, Rules, withLabels, type StoredRule } from '../services/preferences/rules';
 import { parsePreferences } from '../services/preferences/parse';
 import { confirmedRules, preferenceRow } from '../services/preferences/store';
+import { guardPreferenceModel } from '../models/guard';
 
 const knownTool = (req: Request) => {
   const tool = String(req.params.tool);
@@ -37,7 +38,9 @@ export function preferenceRoutes(ctx: Ctx) {
   r.post('/parse', requireCsrf, async (req, res) => {
     const tool = knownTool(req);
     const { text } = z.object({ text: Text }).strict().parse(req.body);
-    const out = await parsePreferences(text, tool, { model: ctx.preferenceModel, timeoutMs: ctx.preferenceModelTimeoutMs });
+    // the user's own guard model if they have one, else the optional server-wide model, else the built-in parser
+    const model = guardPreferenceModel(ctx, req.user!.id) ?? ctx.preferenceModel;
+    const out = await parsePreferences(text, tool, { model, timeoutMs: ctx.preferenceModelTimeoutMs ?? ctx.modelTimeoutMs });
     res.json({ ...out, rules: withLabels(out.rules, tool) });
   });
 

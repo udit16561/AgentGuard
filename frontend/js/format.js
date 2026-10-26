@@ -59,6 +59,7 @@ export const EVENT = {
   AGENT_CREATED: 'Agent created', AGENT_UPDATED: 'Agent changed', AGENT_PAUSED: 'Agent paused', AGENT_RESUMED: 'Agent resumed', AGENT_KEY_ROTATED: 'Agent key rotated',
   KILL_SWITCH_ON: 'Kill switch ON: all agents paused', KILL_SWITCH_OFF: 'Kill switch OFF: agents resumed',
   TOOL_CONNECTED: 'Tool connected', TOOL_DISCONNECTED: 'Tool disconnected', PERMISSION_CHANGED: 'Permission changed', PREFERENCE_CHANGED: 'Preferences changed',
+  MODEL_KEY_ADDED: 'Model key added', MODEL_KEY_REMOVED: 'Model key removed', MODEL_ROLE_CHANGED: 'Model role changed',
   ACTION_PROPOSED: 'Action proposed by agent', ACTION_BLOCKED: 'Action blocked', ALERT_SENT: 'Alert sent to you', ACTION_EXPIRED: 'Action expired',
   APPROVAL_REFUSED: 'Approval refused', ACTION_APPROVED: 'Approved by you', ACTION_AUTO_APPROVED: 'Auto-approved by your rule (LOW risk)', ACTION_REPLACED: 'Replaced by a newer version', ACTION_REJECTED: 'Rejected by you',
   ACTION_SUBMITTED: 'Submitted to the provider', ACTION_COMPLETED: 'Completed, confirmed by the provider', ACTION_UNVERIFIED: 'No confirmation from the provider', ACTION_FAILED: 'Failed at the provider'

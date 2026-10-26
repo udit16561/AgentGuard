@@ -7,7 +7,7 @@ import { requireCsrf, requireUser } from '../middleware/auth';
 import { newId, sha256 } from '../services/canonical';
 
 const newKey = () => `ag_${crypto.randomBytes(32).toString('base64url')}`;
-const view = (a: AgentRow) => ({ id: a.id, name: a.name, model: a.model, status: a.status, createdAt: new Date(a.created_at).toISOString() });
+const view = (a: AgentRow) => ({ id: a.id, name: a.name, model: a.model, status: a.status, kind: a.kind ?? 'external', createdAt: new Date(a.created_at).toISOString() });
 
 export function agentRoutes(ctx: Ctx) {
   const r = Router();

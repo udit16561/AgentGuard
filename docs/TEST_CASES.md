@@ -168,3 +168,34 @@ Layers: **U** = unit, **I** = API integration (supertest), **E** = end-to-end (P
 | UI-18 | E | Review | "Preference check: follows / breaks" per action |
 | UI-19 | E | Dashboard | Spent today / this week / this month against each cap, with meters |
 | UI-20 | E | Payments limits form | Caps, payee caps, new-payee rule, methods, categories, hours, PIN threshold saved |
+
+## 5d. Added in v0.5.0 (bring your own model)
+
+All model tests use AI SDK mock models (`backend/tests/models/mocks.ts`); no test calls a real provider.
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| MOD-BYO-01 | I | No key at all | Deterministic classifier and parser; Assistant answers 409 `MODEL_UNAVAILABLE`; no model built |
+| MOD-BYO-02 | I | Catalog | Suggested agent/guard models with approx. prices and a checked-on date; Ollama/OpenRouter defaults; no Anthropic compat URL |
+| MOD-BYO-03 | I | Add a model | Key encrypted at rest, shown as `••••` + last 4; needs CSRF and re-auth |
+| MOD-BYO-04 | I | Bad input | Unknown provider, missing key, custom without URL, URL on a native provider, empty model ID ⇒ 400 |
+| MOD-BYO-05 | I | Invalid key | Test fails with `INVALID_KEY`, the key is not echoed, the model cannot take a role |
+| MOD-BYO-06 | I | Working model | Connection test plus 5 schema cases pass; can be the guard |
+| MOD-BYO-07 | I | No structured output | Fails the capability test; cannot be the guard, can be the agent |
+| MOD-BYO-08 | I | Untested model | Cannot take any role |
+| MOD-BYO-09 | I | Same provider for both roles | Allowed, with the `SAME_PROVIDER` warning |
+| MOD-BYO-10 | I | Guard raises risk | Guard score and flags added to the action |
+| MOD-BYO-11 | I | Guard timeout | `NEEDS_REVIEW` with `CLASSIFIER_ERROR` |
+| MOD-BYO-12 | I | Guard schema failure | `NEEDS_REVIEW` |
+| MOD-BYO-13 | I | Prompt injection to the guard | Quoted in the user message, never the system prompt; a "LOW" answer cannot lower the risk |
+| MOD-BYO-14 | I | Guard as preference parser | Drafts rules (saved only after confirm); any error ⇒ built-in parser |
+| MOD-BYO-15 | I | Assistant asks to pay | A `PENDING_REVIEW` proposal by the Assistant agent, no execution; the model is offered only `propose_action` |
+| MOD-BYO-16 | I | Assistant without permission | Proposal `BLOCKED` (`PERMISSION_DENIED`) |
+| MOD-BYO-17 | I | Agent key | 401 on every model and Assistant route |
+| MOD-BYO-18 | I | Key leakage | The key is in no API response, log line or audit row; key events are audited |
+| MOD-BYO-19 | U/I | SSRF | Private, link-local, CGNAT, internal and non-https URLs refused; https and http://localhost allowed; a name resolving to a private address refused at call time |
+| MOD-BYO-20 | I | Spend cap | Reaching the monthly cap switches the role off (audited by SYSTEM); deterministic rules take over |
+| MOD-BYO-21 | I | Rotate and delete | Rotation keeps the model and is audited; delete needs re-auth and clears the role |
+| UI-21 | E | Settings → Models | Add a model, masked key, Test connection, assign roles |
+| UI-22 | E | Failures and warnings | Bad key fails, prose-only model not offered as guard, same-provider warning |
+| UI-23 | E | Assistant | "pay Ravi ₹500" becomes a proposal card that waits in Review (`PENDING_REVIEW`) |

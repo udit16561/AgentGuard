@@ -20,6 +20,10 @@ import { actionRoutes } from './routes/actions';
 import type { ModelClassifier } from './services/intent';
 import { decisionRoutes } from './routes/decisions';
 import type { Adapter } from './adapters/types';
+import { agentSelfRoutes, preferenceRoutes } from './routes/preferences';
+import { spendingRoutes } from './routes/spending';
+import { anthropicPreferenceModel } from './services/preferences/model';
+import type { PreferenceModel } from './services/preferences/parse';
 
 export interface AppOptions {
   dbPath?: string;
@@ -29,6 +33,9 @@ export interface AppOptions {
   classifier?: ModelClassifier;
   /** Test hook: replace a tool's mock adapter (for example one with no provider reference, SEC-25). */
   adapters?: Partial<Record<string, Adapter>>;
+  /** Optional preference parser model; defaults to PREFERENCE_MODEL_PROVIDER. Any error falls back to the deterministic parser. */
+  preferenceModel?: PreferenceModel;
+  preferenceModelTimeoutMs?: number;
   /** Serve ../frontend as static files (default true). */
   serveFrontend?: boolean;
 }
@@ -66,16 +73,21 @@ export async function createApp(options: AppOptions = {}) {
   // API responses hold personal data: never cache them (docs/FRONTEND_GUIDE.md §4)
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
-  const ctx: Ctx = { db, clock, config, audit: createAuditService(db, clock) };
+  const preferenceModel = options.preferenceModel
+    ?? (config.preferenceModelProvider === 'anthropic' && config.preferenceModelApiKey ? anthropicPreferenceModel(config.preferenceModelApiKey, config.preferenceModel) : undefined);
+  const ctx: Ctx = { db, clock, config, audit: createAuditService(db, clock), preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs };
   app.use(loadSession(ctx));
   app.use(loadAgent(ctx));
 
   app.get('/api/health', (_req, res) => { res.json({ ok: true, integrationMode: config.integrationMode }); });
   app.use('/api/auth', authRoutes(ctx));
+  app.use('/api/me/spending', spendingRoutes(ctx));
   app.use('/api/me', meRoutes(ctx));
   app.use('/api/audit', auditRoutes(ctx));
+  app.use('/api/agents/me', agentSelfRoutes(ctx));   // agent key only; before the user-only /api/agents routes
   app.use('/api/agents/:id/permissions', permissionRoutes(ctx));
   app.use('/api/agents', agentRoutes(ctx));
+  app.use('/api/tools/:tool/preferences', preferenceRoutes(ctx));
   app.use('/api/tools', toolRoutes(ctx));
   app.use('/api/actions', decisionRoutes(ctx, { adapters: options.adapters }));
   app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));

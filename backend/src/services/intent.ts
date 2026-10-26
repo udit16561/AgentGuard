@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { operationDef, type Intent } from './catalog';
+import { categoryHit } from './categories';
 
 /**
  * Intent classification and risk scoring (docs/INTENT_AND_RISK.md).
@@ -17,6 +18,14 @@ export interface ClassifyContext {
   spentToday?: number;
   outsideAllowedHours?: boolean;
   trustedDomains?: string[];
+  /** payments: categories the user blocked; the words showing up in payee or note raise the risk */
+  blockedCategories?: string[];
+  /** payments: methods are restricted but the agent named none */
+  methodMissing?: boolean;
+  reauthAbove?: number;
+  /** tool preferences the action breaks (soft rules; hard ones were already blocked by the policy) */
+  preferenceViolations?: { label: string; flag?: string }[];
+  preferenceError?: boolean;
 }
 export interface ClassifyInput { tool: string; operation: string; payload: Record<string, unknown>; context?: ClassifyContext }
 export interface Classification {
@@ -104,6 +113,11 @@ export function classifyRules(input: ClassifyInput): Classification {
       if (total > ctx.dailyCap) { reasons.push(`Over the daily cap of ${ctx.dailyCap}`); flags.add('LIMIT_EXCEEDED'); floor = Math.max(floor, CRITICAL_FLOOR); }
       else if (amount > ctx.dailyCap * 0.5) add(15, `Amount is ${Math.round(amount / ctx.dailyCap * 100)}% of the daily cap`, 'LARGE_AMOUNT');
     }
+    if (ctx.methodMissing) { reasons.push('Payment method not given'); flags.add('MISSING_DETAILS'); needsReview = true; }
+    if (ctx.reauthAbove != null && Number.isFinite(amount) && amount > ctx.reauthAbove) { reasons.push(`Above your PIN threshold of ${ctx.reauthAbove}`); flags.add('REAUTH_THRESHOLD'); }
+    const described = ['payee', 'to', 'note', 'description', 'merchant', 'category', 'memo'].map(k => payload[k]).filter(v => typeof v === 'string').join(' ');
+    const category = (ctx.blockedCategories ?? []).find(c => categoryHit(c, described));
+    if (category) add(25, `Looks like a blocked category: ${category}`, 'CATEGORY_MATCH');
   }
 
   if (payload.audience === 'public' || payload.visibility === 'public') add(15, 'Public audience', 'PUBLIC');
@@ -123,6 +137,11 @@ export function classifyRules(input: ClassifyInput): Classification {
   if (untrusted.length) add(10, `Link from an untrusted source: ${shortList(untrusted)}`, 'UNTRUSTED_LINK');
 
   if (INJECTION.test(text)) add(25, 'Contains instructions aimed at the system (possible prompt injection)', 'PROMPT_INJECTION');
+
+  // tool preferences may only add risk: +20 for each broken soft rule, at most +40 (docs/PREFERENCES.md)
+  const broken = ctx.preferenceViolations ?? [];
+  broken.forEach((v, i) => { add(i < 2 ? 20 : 0, `Breaks your preference: ${v.label}`, 'PREFERENCE_VIOLATION'); if (v.flag) flags.add(v.flag); });
+  if (ctx.preferenceError) { reasons.push('Your preferences for this tool could not be checked'); flags.add('PREFERENCE_CHECK_ERROR'); needsReview = true; }
 
   score = Math.min(100, Math.max(score, floor));
   return { intent: def.intent, riskLevel: levelOf(score), riskScore: score, confidence: 0.9, reasons, flags: [...flags], needsReview };

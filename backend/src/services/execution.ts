@@ -27,7 +27,7 @@ export async function executeApproved(ctx: Ctx, actionId: string, approvalId: st
   if (ap.payload_hash !== a.payload_hash || current !== a.payload_hash) throw new AppError(409, 'PAYLOAD_CHANGED', 'The action changed after approval', a.id);
 
   // gate 1, again
-  const policy = checkPolicy(ctx, { userId: a.user_id, agentId: a.agent_id, tool: a.tool, operation: a.operation, payload, excludeActionId: a.id });
+  const policy = checkPolicy(ctx, { userId: a.user_id, agentId: a.agent_id, tool: a.tool, operation: a.operation, payload, excludeActionId: a.id, phase: 'decide' });
   if (!policy.ok) throw new AppError(policy.status, policy.code, policy.message, a.id);
 
   // single use: only one caller can claim the approval (SEC-26)

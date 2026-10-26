@@ -9,6 +9,7 @@
  *   npm run demo:agent -- meet raj@example.com "Coffee chat" [2026-11-02T10:00:00+05:30]
  *   npm run demo:agent -- dm whatsapp +91-98000-00001 "On my way"   (whatsapp | instagram | x | linkedin)
  *   npm run demo:agent -- alarm 07:00 "Gym"
+ *   npm run demo:agent -- prefs [gmail]     (reads your confirmed preferences, so the agent can follow them up front)
  * Add --replaces <actionId> to revise an earlier proposal; the review screen then shows what changed.
  *
  * The same pattern works inside a real agent framework: an OpenAI Agents SDK tool with
@@ -28,7 +29,7 @@ const tomorrowAt10 = () => `${new Date(Date.now() + 86_400_000).toISOString().sl
 const plus30 = (iso: string) => new Date(Date.parse(iso) + 30 * 60_000).toISOString();
 
 const proposals: Record<string, () => Proposal> = {
-  pay: () => ({ tool: 'payments', operation: 'pay', payload: { amount: Number(a), currency: 'INR', payee: b, ...(c ? { note: c } : {}) } }),
+  pay: () => ({ tool: 'payments', operation: 'pay', payload: { amount: Number(a), currency: 'INR', payee: b, method: 'upi', ...(c ? { note: c } : {}) } }),
   email: () => ({ tool: 'gmail', operation: 'send', payload: { to: [a], subject: c ?? 'A note from your agent', body: b } }),
   post: () => {
     const text = b ?? '';
@@ -44,12 +45,22 @@ const proposals: Record<string, () => Proposal> = {
   },
   alarm: () => ({ tool: 'clock', operation: 'set_alarm', payload: { time: a, label: b ?? 'Alarm' } })
 };
-if (!proposals[kind]) { console.error(`Unknown kind. Use: ${Object.keys(proposals).join(', ')}`); process.exit(1); }
+if (!proposals[kind] && kind !== 'prefs') { console.error(`Unknown kind. Use: ${Object.keys(proposals).join(', ')}, prefs`); process.exit(1); }
 
 const headers = { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 const FINAL = ['COMPLETED', 'FAILED', 'UNKNOWN', 'REJECTED', 'EXPIRED', 'BLOCKED'];
 
 async function main() {
+  if (kind === 'prefs') {
+    const res = await fetch(`${BASE}/api/agents/me/preferences${a ? `?tool=${encodeURIComponent(a)}` : ''}`, { headers });
+    const body = await res.json();
+    if (!res.ok) { console.log('Refused:', body.error); return; }
+    for (const p of body.preferences) console.log(`${p.tool}:
+${p.rules.map((r: { label: string; hard: boolean }) => `  - ${r.label}${r.hard ? ' (hard: blocks)' : ''}`).join('
+')}`);
+    if (!body.preferences.length) console.log('No preferences for the tools this agent may use.');
+    return;
+  }
   const res = await fetch(`${BASE}/api/actions`, { method: 'POST', headers, body: JSON.stringify({ ...proposals[kind](), ...(replaces ? { replaces } : {}) }) });
   const body = await res.json();
   if (!res.ok) { console.log('Refused:', body.error); return; }

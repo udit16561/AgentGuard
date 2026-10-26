@@ -11,6 +11,10 @@ export interface Config {
   integrationMode: 'mock' | 'live';
   corsOrigin: string;
   tokenEncryptionKey: Buffer;
+  /** optional small model for parsing tool preferences; "none" keeps the deterministic parser only */
+  preferenceModelProvider: 'none' | 'anthropic';
+  preferenceModel: string;
+  preferenceModelApiKey: string | null;
 }
 
 const num = (v: string | undefined, fallback: number) => {
@@ -38,6 +42,9 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     integrationMode: process.env.INTEGRATION_MODE === 'live' ? 'live' : 'mock',
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
     tokenEncryptionKey: encryptionKey(nodeEnv),
+    preferenceModelProvider: process.env.PREFERENCE_MODEL_PROVIDER === 'anthropic' ? 'anthropic' : 'none',
+    preferenceModel: process.env.PREFERENCE_MODEL || 'claude-haiku-5-5',
+    preferenceModelApiKey: process.env.PREFERENCE_MODEL_API_KEY || null,
     ...overrides
   };
 }

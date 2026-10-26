@@ -29,8 +29,9 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - **User**: id, email, passwordHash, planId, timezone, createdAt
 - **Agent**: id, userId, name, model, apiKeyHash, status (`ACTIVE|PAUSED|REVOKED`)
 - **ToolConnection**: id, userId, tool, status, encryptedToken, scopes[], connectedAt
-- **Permission**: id, agentId, tool, operation, allowed (default false), limits (JSON: maxAmount, dailyCap, allowedRecipients, timeWindow)
-- **Action**: id, agentId, tool, operation, payload (JSON), payloadHash, intent, riskLevel, riskScore, riskReasons[], status, createdAt
+- **Permission**: id, agentId, tool, operation, allowed (default false), limits (JSON: maxAmount, dailyCap, weeklyCap, monthlyCap, currency, knownPayees, allowedPayees, payeeCaps, newPayees, allowedMethods, blockedCategories, reauthAbove, knownRecipients, allowedRecipients, maxRecipients, timeWindow, enforceHours, autoAllow)
+- **ToolPreference**: id, userId, tool, text (≤ 500 chars, as written), rules (JSON, confirmed by the user), updatedAt
+- **Action**: id, agentId, tool, operation, payload (JSON), payloadHash, intent, riskLevel, riskScore, riskReasons[], status, preferenceCheck (followed/broken rules, or null), createdAt
 - **Approval**: id, actionId, userId, decision (`APPROVED|REJECTED`), payloadHash, reauthUsed, decidedAt, expiresAt
 - **Execution**: id, actionId, adapterMode (`MOCK|LIVE`), providerRef, result, error, finishedAt
 - **AuditEvent**: id, seq, actorType (`USER|AGENT|SYSTEM`), actorId, eventType, actionId?, data (JSON, secrets redacted), prevHash, hash, createdAt
@@ -49,6 +50,13 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - `GET /api/tools` (catalog + connection state)
 - `POST /api/tools/:tool/connect` (mock OAuth) · `DELETE /api/tools/:tool`
 - `GET/PUT /api/agents/:id/permissions`
+- `GET /api/tools/:tool/preferences` → `{ text, rules[] (with label), updatedAt }`
+- `POST /api/tools/:tool/preferences/parse` body `{ text }` → `{ rules[], ignored[], unrecognized[], parser, fallbackReason? }`. Saves nothing.
+- `PUT /api/tools/:tool/preferences` body `{ text, rules, confirmed: true }` → saved; audited as `PREFERENCE_CHANGED`
+- `GET /api/me/spending` → `{ currency, agents: [{ agentId, agentName, today, week, month, caps: { daily, weekly, monthly } }] }`
+
+### Agent self (agent key only)
+- `GET /api/agents/me/preferences?tool=` → confirmed rules (with labels) for the tools this agent may use. Every other method is `403`.
 
 ### Actions
 - `POST /api/actions` — **agent key only**. Body: `{ tool, operation, payload, replaces? }`. Returns `{ id, status, riskLevel }` (plus `result` when an auto-allowed read or alarm ran at once). `replaces` names the agent's own earlier action for the same tool; an open one becomes `BLOCKED` (`REPLACED`) and the user sees what changed.
@@ -69,7 +77,7 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - `GET /api/stream` (SSE: new alerts, status changes)
 
 ## 4. Testability contract (required by `backend/tests/`)
-- `src/app.ts` exports `createApp({ dbPath, clock?, classifier?, adapters? })` returning `{ app, clock, db }`. `clock.advanceMinutes(n)` moves time forward for expiry tests. `adapters` lets a test swap in a mock adapter (for example one that returns no provider reference, for SEC-25).
+- `src/app.ts` exports `createApp({ dbPath, clock?, classifier?, adapters?, preferenceModel?, preferenceModelTimeoutMs? })` returning `{ app, clock, db }`. `clock.advanceMinutes(n)` moves time forward for expiry tests; `createClock(startMs)` pins "now" for time-of-day tests. `adapters` lets a test swap in a mock adapter (for example one that returns no provider reference, for SEC-25).
 - `src/services/intent.ts` exports `classify({ tool, operation, payload, context })`.
 - The audit table is named `audit_events` and has a `seq` column that starts at 1.
 - `GET /api/actions/:id` (user) includes `payloadHash`, `riskLevel` and `execution` (`null` until run).

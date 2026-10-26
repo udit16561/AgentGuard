@@ -82,11 +82,22 @@ CREATE TABLE IF NOT EXISTS actions (
   status TEXT NOT NULL,
   block_reason TEXT,
   replaces_id TEXT,
+  preference_check TEXT,
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS actions_user_status ON actions (user_id, status);
+
+CREATE TABLE IF NOT EXISTS tool_preferences (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  tool TEXT NOT NULL,
+  text TEXT NOT NULL,
+  rules TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (user_id, tool)
+);
 
 CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY,

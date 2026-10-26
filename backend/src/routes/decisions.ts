@@ -45,7 +45,7 @@ export function decisionRoutes(ctx: Ctx, opts: { adapters?: Partial<Record<strin
       throw new AppError(409, 'PAYLOAD_CHANGED', 'The details you approved are not the details of this action. Review it again.', a.id);
     }
 
-    const policy = checkPolicy(ctx, { userId: a.user_id, agentId: a.agent_id, tool: a.tool, operation: a.operation, payload: JSON.parse(a.payload), excludeActionId: a.id });
+    const policy = checkPolicy(ctx, { userId: a.user_id, agentId: a.agent_id, tool: a.tool, operation: a.operation, payload: JSON.parse(a.payload), excludeActionId: a.id, phase: 'decide' });
     if (!policy.ok) {                                                                      // 423, 403
       log(req, a, 'APPROVAL_REFUSED', { reason: policy.reason });
       throw new AppError(policy.status, policy.code, policy.message, a.id);

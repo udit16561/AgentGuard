@@ -147,3 +147,24 @@ Layers: **U** = unit, **I** = API integration (supertest), **E** = end-to-end (P
 | UI-14 | E | Auto-allow switch | Off by default, only on reads and alarms, run shows in the audit |
 | UI-15 | E | Tool previews | Email draft, post card, meeting card with attendees, payment receipt with the provider's receipt number |
 | UI-16 | E | Re-proposal | "What changed" shows before and after |
+
+## 5c. Added in v0.4.0 (tool preferences and payment limits)
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| PF-01..40 | U | Parser fixtures (`tests/fixtures/preferences.json`): sentence → rules | Exact rule list; "auto-approve…" sentences ignored; nonsense reported as not understood |
+| PREF-P1..P2 | U | Permissive or overlong text | No rule ever grants anything; > 500 characters refused |
+| PREF-M1..M5 | U | Optional model parser | Used only when valid under the strict schema; timeout (3 s), error, bad JSON or unknown type falls back to the deterministic parser; the model can never mark a rule hard |
+| PREF-T1..T2 | U | TF-IDF topic similarity, tone lexicon | ≥ 0.35 for on-topic text, below for unrelated; hostile and unprofessional words found |
+| PREF-01..04 | I | Parse, confirm, save, audit | Parse saves nothing; save needs `confirmed: true`; `PREFERENCE_CHANGED` with old and new text; grant rules refused; limits on size |
+| PREF-05..06 | I | Agent access | Agent key can never write (401/403); can read confirmed rules for allowed tools only, never the raw text |
+| PREF-07..16 | I | Each rule type on a proposal | timeWindow, dayBlock, maxDuration, account, recipient allow/deny, requiredText, blockedTopics (`PREFERENCE_TOPIC`), tone (`PREFERENCE_TONE`), attachmentPolicy, maxAmount: soft raises risk, hard blocks |
+| PREF-17..21 | I | Safety | Following rules never lowers risk or approves; checker error ⇒ `NEEDS_REVIEW`; reads unchecked; hard rule re-checked at approval; model timeout via the API falls back |
+| PAY-01..04 | I | Per-transaction max, daily, weekly, monthly caps | Over a cap ⇒ `403` (`LIMIT_EXCEEDED`, `WEEKLY_LIMIT_EXCEEDED`, `MONTHLY_LIMIT_EXCEEDED`) |
+| PAY-05..07 | I | Payee rules | Per-payee monthly cap; new payees blocked or (default) riskier |
+| PAY-08..11 | I | Methods, categories, hours, PIN | Method off ⇒ blocked, missing ⇒ needs review; named category blocked, hinted category raises risk; enforced hours block; above threshold re-auth always required |
+| PAY-12..13 | I | Validation, spend vs caps | Bad limits refused; `/api/me/spending` totals today/week/month (pending not counted) |
+| UI-17 | E | Preferences | "I understood" list with hard switches; nothing saved before Confirm; ignored text shown |
+| UI-18 | E | Review | "Preference check: follows / breaks" per action |
+| UI-19 | E | Dashboard | Spent today / this week / this month against each cap, with meters |
+| UI-20 | E | Payments limits form | Caps, payee caps, new-payee rule, methods, categories, hours, PIN threshold saved |

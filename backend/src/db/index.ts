@@ -17,4 +17,5 @@ export function openDb(dbPath: string): Db {
 function migrate(db: Db) {
   const has = (table: string, column: string) => (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some(c => c.name === column);
   if (!has('actions', 'replaces_id')) db.exec('ALTER TABLE actions ADD COLUMN replaces_id TEXT');   // v0.3.0: re-proposals
+  if (!has('actions', 'preference_check')) db.exec('ALTER TABLE actions ADD COLUMN preference_check TEXT');   // v0.4.0: tool preferences
 }

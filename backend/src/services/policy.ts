@@ -1,26 +1,43 @@
 import type { AgentRow, Ctx, UserRow } from '../context';
 import type { ErrorCode } from '../http';
+import type { Db } from '../db';
 import { operationDef } from './catalog';
 import { getPermission, type Limits } from './permissions';
 import type { ClassifyContext } from './intent';
 import { outsideWindow, zonedParts } from './time';
+import { evaluatePreferences } from './preferences/store';
+import { categoryHit } from './categories';
+import type { PreferenceReport } from './preferences/check';
 
 /**
  * Gate 1, permission (docs/SECURITY_AND_APPROVALS.md §1): kill switch off, agent active, tool connected,
- * operation allowed, limits satisfied. Checked when an action is proposed, again on approval,
- * and again by the execution service right before the adapter call.
+ * operation allowed, limits satisfied, no broken "hard" preference. Checked when an action is proposed,
+ * again on approval, and again by the execution service right before the adapter call.
  */
 export type PolicyResult =
-  | { ok: true; limits: Limits; context: ClassifyContext }
-  | { ok: false; status: number; code: ErrorCode; reason: string; message: string };
+  | { ok: true; limits: Limits; context: ClassifyContext; preferences: PreferenceReport | null }
+  | { ok: false; status: number; code: ErrorCode; reason: string; message: string; preferences?: PreferenceReport | null };
 
-// money that may already have moved counts towards the daily cap
+// money that may already have moved counts towards the caps
 const SPENDING = "('APPROVED', 'SUBMITTED', 'COMPLETED', 'UNKNOWN')";
 
-const deny = (status: number, code: ErrorCode, reason: string, message: string): PolicyResult => ({ ok: false, status, code, reason, message: `${reason}: ${message}` });
+const deny = (status: number, code: ErrorCode, reason: string, message: string, preferences?: PreferenceReport | null): PolicyResult =>
+  ({ ok: false, status, code, reason, message: `${reason}: ${message}`, ...(preferences !== undefined ? { preferences } : {}) });
 const list = (v: unknown) => (Array.isArray(v) ? v : v == null ? [] : [v]).filter((x): x is string => typeof x === 'string');
+const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool: string; operation: string; payload: Record<string, unknown>; excludeActionId?: string }): PolicyResult {
+/** Sum of amounts an agent has (or may have) paid with a tool since `from`, optionally to one payee. */
+export function spentSince(db: Db, agentId: string, tool: string, from: number, opts: { payee?: string; excludeActionId?: string } = {}) {
+  const rows = db.prepare(`SELECT payload FROM actions WHERE agent_id = ? AND tool = ? AND status IN ${SPENDING} AND created_at >= ? AND id != ?`)
+    .all(agentId, tool, from, opts.excludeActionId ?? '') as { payload: string }[];
+  return rows.reduce((sum, r) => {
+    const p = JSON.parse(r.payload);
+    if (opts.payee && !same(String(p.payee ?? p.to ?? ''), opts.payee)) return sum;
+    return sum + (typeof p.amount === 'number' ? p.amount : 0);
+  }, 0);
+}
+
+export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool: string; operation: string; payload: Record<string, unknown>; excludeActionId?: string; phase?: 'propose' | 'decide' }): PolicyResult {
   const { db, clock } = ctx;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(a.userId) as UserRow;
   const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(a.agentId) as AgentRow | undefined;
@@ -37,8 +54,10 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
   const limits = perm.limits;
 
   const now = clock.now();
-  const { startOfDay, minuteOfDay } = zonedParts(now, user.timezone);
+  const { startOfDay, startOfWeek, startOfMonth, minuteOfDay } = zonedParts(now, user.timezone);
   const amount = typeof a.payload.amount === 'number' ? a.payload.amount : undefined;
+  const payee = list(a.payload.payee ?? a.payload.to)[0];
+  const spent = (from: number, payeeName?: string) => spentSince(db, a.agentId, a.tool, from, { payee: payeeName, excludeActionId: a.excludeActionId });
 
   if (limits.currency && typeof a.payload.currency === 'string' && a.payload.currency.toUpperCase() !== limits.currency)
     return deny(403, 'PERMISSION_DENIED', 'CURRENCY_NOT_ALLOWED', `Only ${limits.currency} is allowed`);
@@ -47,11 +66,17 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
 
   let spentToday = 0;
   if (limits.dailyCap != null) {
-    const rows = db.prepare(`SELECT payload FROM actions WHERE agent_id = ? AND tool = ? AND status IN ${SPENDING} AND created_at >= ? AND id != ?`)
-      .all(a.agentId, a.tool, startOfDay, a.excludeActionId ?? '') as { payload: string }[];
-    spentToday = rows.reduce((sum, r) => { const v = JSON.parse(r.payload).amount; return sum + (typeof v === 'number' ? v : 0); }, 0);
+    spentToday = spent(startOfDay);
     if (amount != null && spentToday + amount > limits.dailyCap)
       return deny(403, 'PERMISSION_DENIED', 'LIMIT_EXCEEDED', `This would take today's total to ${spentToday + amount}, over the daily cap of ${limits.dailyCap}`);
+  }
+  if (limits.weeklyCap != null && amount != null) {
+    const week = spent(startOfWeek);
+    if (week + amount > limits.weeklyCap) return deny(403, 'PERMISSION_DENIED', 'WEEKLY_LIMIT_EXCEEDED', `This would take this week's total to ${week + amount}, over the weekly cap of ${limits.weeklyCap}`);
+  }
+  if (limits.monthlyCap != null && amount != null) {
+    const month = spent(startOfMonth);
+    if (month + amount > limits.monthlyCap) return deny(403, 'PERMISSION_DENIED', 'MONTHLY_LIMIT_EXCEEDED', `This would take this month's total to ${month + amount}, over the monthly cap of ${limits.monthlyCap}`);
   }
 
   if (limits.allowedRecipients?.length) {
@@ -62,10 +87,28 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
   }
 
   if (limits.allowedPayees?.length) {
-    const payee = list(a.payload.payee ?? a.payload.to)[0];
-    if (payee && !limits.allowedPayees.some(p => p.toLowerCase() === payee.toLowerCase()))
+    if (payee && !limits.allowedPayees.some(p => same(p, payee)))
       return deny(403, 'PERMISSION_DENIED', 'PAYEE_NOT_ALLOWED', `${payee} is not on the allowed payee list`);
   }
+  const knownPayees = [...(limits.knownPayees ?? []), ...(limits.allowedPayees ?? [])];
+  if (payee && limits.newPayees === 'block' && !knownPayees.some(p => same(p, payee)))
+    return deny(403, 'PERMISSION_DENIED', 'NEW_PAYEE_BLOCKED', `${payee} is a new payee, and new payees are blocked`);
+  if (payee && amount != null && limits.payeeCaps) {
+    const capKey = Object.keys(limits.payeeCaps).find(k => same(k, payee));
+    if (capKey) {
+      const toPayee = spent(startOfMonth, payee);
+      if (toPayee + amount > limits.payeeCaps[capKey])
+        return deny(403, 'PERMISSION_DENIED', 'PAYEE_LIMIT_EXCEEDED', `This would take ${payee}'s total this month to ${toPayee + amount}, over their cap of ${limits.payeeCaps[capKey]}`);
+    }
+  }
+
+  const method = typeof a.payload.method === 'string' ? a.payload.method.toLowerCase().replace(/[\s_-]/g, '') : undefined;
+  if (limits.allowedMethods && method && !limits.allowedMethods.includes(method as never))
+    return deny(403, 'PERMISSION_DENIED', 'METHOD_NOT_ALLOWED', `Paying by ${a.payload.method} is switched off`);
+
+  const category = typeof a.payload.category === 'string' ? a.payload.category : undefined;
+  if (category && limits.blockedCategories?.some(c => same(c, category) || categoryHit(c, category)))
+    return deny(403, 'PERMISSION_DENIED', 'CATEGORY_BLOCKED', `Payments for ${category} are blocked`);
 
   if (limits.maxRecipients != null) {
     const count = new Set([...list(a.payload.to), ...list(a.payload.cc), ...list(a.payload.bcc), ...list(a.payload.recipients), ...list(a.payload.attendees)]
@@ -77,14 +120,26 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
   if (outsideHours && limits.enforceHours)
     return deny(403, 'PERMISSION_DENIED', 'OUTSIDE_ALLOWED_HOURS', `Only allowed between ${limits.timeWindow!.start} and ${limits.timeWindow!.end}`);
 
+  // tool preferences: a broken hard rule blocks; soft ones only raise the risk (in the classifier)
+  const knownRecipients = [...(limits.knownRecipients ?? []), ...(limits.allowedRecipients ?? [])];
+  const preferences = evaluatePreferences(ctx, { userId: a.userId, timeZone: user.timezone, tool: a.tool, operation: a.operation, payload: a.payload, knownRecipients });
+  const hard = preferences?.broken.filter(b => b.hard) ?? [];
+  if (hard.length) return deny(403, 'PERMISSION_DENIED', 'PREFERENCE_VIOLATION', `Breaks your rule: ${hard.map(b => b.label).join('; ')}`, preferences);
+  // at decision time an unreadable preference can no longer be shown to the user, so it stops the action (fail closed)
+  if (preferences?.error && a.phase === 'decide') return deny(403, 'PERMISSION_DENIED', 'PREFERENCE_CHECK_FAILED', 'Your preferences for this tool could not be checked. Save them again.', preferences);
+
   return {
-    ok: true, limits,
+    ok: true, limits, preferences,
     context: {
-      knownRecipients: [...(limits.knownRecipients ?? []), ...(limits.allowedRecipients ?? [])],
-      knownPayees: [...(limits.knownPayees ?? []), ...(limits.allowedPayees ?? [])],
+      knownRecipients, knownPayees,
       dailyCap: limits.dailyCap,
       spentToday,
-      outsideAllowedHours: outsideHours
+      outsideAllowedHours: outsideHours,
+      blockedCategories: limits.blockedCategories,
+      methodMissing: !!limits.allowedMethods && !method,
+      reauthAbove: limits.reauthAbove,
+      preferenceViolations: preferences?.broken.map(b => ({ label: b.label, flag: b.flag })) ?? [],
+      preferenceError: !!preferences?.error
     }
   };
 }

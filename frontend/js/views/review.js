@@ -67,7 +67,7 @@ export async function render(view, selectedId) {
     if (a.status === 'NEEDS_REVIEW') parts.push(h('div', { class: 'warn', role: 'note' }, h('b', {}, 'AgentGuard is not sure about this one. '), 'Details are missing or the risk check was uncertain, so check everything yourself. Approving needs your password.'));
     if (a.status === 'BLOCKED') parts.push(h('div', { class: 'err', role: 'note' }, `Blocked: ${a.blockReason ?? 'not allowed'}. It cannot run.`));
 
-    parts.push(changesCard(a), preview(a));
+    parts.push(changesCard(a), preferenceCard(a), preview(a));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-details' }, h('h2', { id: 'd-details' }, 'Exact details'), payloadFields(a.payload)));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-risk' },
       h('div', { class: 'card-h' }, h('h2', { id: 'd-risk' }, 'Intent and risk'), h('span', { class: 'adv' }, 'Advisory')),
@@ -94,6 +94,22 @@ export async function render(view, selectedId) {
 
     if (open) parts.push(decisionBar(a));
     clear(detail).append(...parts.filter(Boolean));   // native append would print null as text
+  }
+
+  /** "Preference check: follows / breaks" for the tool's confirmed preferences. Advisory, like the risk check, except hard rules, which block. */
+  function preferenceCard(a) {
+    const pc = a.preferenceCheck;
+    if (!pc) return null;
+    const body = pc.error ? h('div', { class: 'warn', role: 'note' }, h('b', {}, 'Your preferences could not be checked. '), 'So this needs your review. Save the preferences for this tool again under Tools.')
+      : !pc.broken.length && !pc.followed.length ? h('p', { class: 'empty' }, 'None of your preferences apply to this action.')
+      : h('ul', { class: 'pref-results' },
+        pc.broken.map(b => h('li', { class: 'broken' }, icon('alert', 16), h('span', {}, h('b', {}, 'Breaks: '), b.label, b.detail ? ` (${b.detail})` : '', b.hard ? h('span', { class: 'flag' }, 'hard rule: blocked') : null))),
+        pc.followed.map(f => h('li', { class: 'followed' }, icon('ok', 16), h('span', {}, h('b', {}, 'Follows: '), f.label))));
+    const head = pc.error ? 'could not run' : pc.broken.length ? `breaks ${pc.broken.length} rule${pc.broken.length === 1 ? '' : 's'}` : 'follows your preferences';
+    return h('section', { class: 'card', id: 'pref-check', 'aria-labelledby': 'pref-h' },
+      h('div', { class: 'card-h' }, h('h2', { id: 'pref-h' }, `Preference check: ${head}`),h('a', { class: 'link', href: '#/tools' }, 'Edit preferences')),
+      body,
+      h('p', { class: 'fine' }, 'A broken preference raises the risk; a hard rule blocks the action. Following them never approves anything.'));
   }
 
   function decisionBar(a) {

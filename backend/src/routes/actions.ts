@@ -59,7 +59,7 @@ export function actionRoutes(ctx: Ctx, opts: { classifier?: ModelClassifier; ada
     const id = newId('act');
     const { replaces: _replaces, ...proposal } = body;   // the hash covers the proposal only
     const hash = payloadHash(agent.id, proposal.tool, proposal.operation, proposal.payload);
-    const policy = checkPolicy(ctx, { userId: agent.user_id, agentId: agent.id, ...proposal });
+    const policy = checkPolicy(ctx, { userId: agent.user_id, agentId: agent.id, ...proposal, phase: 'propose' });
     const c = await classify({ ...proposal, context: policy.ok ? policy.context : {} }, { model: policy.ok ? opts.classifier : undefined });
     // auto-allow: only if the user switched it on for this read or alarm, and only while the risk stays LOW (docs/SECURITY_AND_APPROVALS.md §3)
     const autoAllowed = policy.ok && !!policy.limits.autoAllow && AUTO_ALLOW_INTENTS.includes(c.intent) && c.riskLevel === 'LOW' && !c.needsReview;
@@ -71,14 +71,15 @@ export function actionRoutes(ctx: Ctx, opts: { classifier?: ModelClassifier; ada
       intent: c.intent, risk_level: c.riskLevel, risk_score: c.riskScore, confidence: c.confidence,
       risk_reasons: JSON.stringify(c.reasons), flags: JSON.stringify(c.flags),
       status, block_reason: policy.ok ? null : policy.reason, replaces_id: replaced?.id ?? null,
+      preference_check: policy.preferences ? JSON.stringify(policy.preferences) : null,
       created_at: now, expires_at: now + config.approvalTtlMinutes * 60_000, updated_at: now
     };
-    db.prepare(`INSERT INTO actions (id, user_id, agent_id, tool, operation, payload, payload_hash, intent, risk_level, risk_score, confidence, risk_reasons, flags, status, block_reason, replaces_id, created_at, expires_at, updated_at)
-      VALUES (@id, @user_id, @agent_id, @tool, @operation, @payload, @payload_hash, @intent, @risk_level, @risk_score, @confidence, @risk_reasons, @flags, @status, @block_reason, @replaces_id, @created_at, @expires_at, @updated_at)`).run(row);
+    db.prepare(`INSERT INTO actions (id, user_id, agent_id, tool, operation, payload, payload_hash, intent, risk_level, risk_score, confidence, risk_reasons, flags, status, block_reason, replaces_id, preference_check, created_at, expires_at, updated_at)
+      VALUES (@id, @user_id, @agent_id, @tool, @operation, @payload, @payload_hash, @intent, @risk_level, @risk_score, @confidence, @risk_reasons, @flags, @status, @block_reason, @replaces_id, @preference_check, @created_at, @expires_at, @updated_at)`).run(row);
 
     const base = { agentId: agent.id, tool: proposal.tool, operation: proposal.operation, payloadHash: hash };
     audit.append({ userId: agent.user_id, actorType: 'AGENT', actorId: agent.id, eventType: 'ACTION_PROPOSED', actionId: id,
-      data: { ...base, payload: proposal.payload, intent: c.intent, riskLevel: c.riskLevel, riskScore: c.riskScore, reasons: c.reasons, flags: c.flags, replaces: replaced?.id ?? null } });
+      data: { ...base, payload: proposal.payload, intent: c.intent, riskLevel: c.riskLevel, riskScore: c.riskScore, reasons: c.reasons, flags: c.flags, replaces: replaced?.id ?? null, preferencesBroken: policy.preferences?.broken.map(b => b.id) ?? [] } });
 
     if (replaced && OPEN.includes(replaced.status)) {
       db.prepare("UPDATE actions SET status = 'BLOCKED', block_reason = 'REPLACED', updated_at = ? WHERE id = ?").run(now, replaced.id);

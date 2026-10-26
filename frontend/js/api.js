@@ -57,6 +57,12 @@ export const api = {
   permissions: id => request('GET', `/api/agents/${encodeURIComponent(id)}/permissions`).then(r => r.permissions),
   setPermissions: (id, permissions) => request('PUT', `/api/agents/${encodeURIComponent(id)}/permissions`, { permissions }).then(r => r.permissions),
   killSwitch: on => request('POST', '/api/kill-switch', { on }),
+  spending: () => request('GET', '/api/me/spending'),
+
+  preferences: tool => request('GET', `/api/tools/${encodeURIComponent(tool)}/preferences`),
+  parsePreferences: (tool, text) => request('POST', `/api/tools/${encodeURIComponent(tool)}/preferences/parse`, { text }),
+  // only called from the confirm step: the backend refuses a save without confirmed: true
+  savePreferences: (tool, text, rules) => request('PUT', `/api/tools/${encodeURIComponent(tool)}/preferences`, { text, rules, confirmed: true }),
 
   audit: params => request('GET', `/api/audit${qs(params)}`).then(r => r.events),
   verify: () => request('GET', '/api/audit/verify')

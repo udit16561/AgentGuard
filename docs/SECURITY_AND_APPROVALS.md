@@ -17,7 +17,7 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 
 ## 3. When approval is mandatory
 - Always: payments, sending messages/emails, publishing/editing/deleting posts, creating/cancelling meetings, deleting data.
-- Configurable (user may auto-allow): reading data, setting a personal alarm/reminder — only if risk is LOW.
+- Configurable (user may auto-allow): reading data, setting a personal alarm/reminder — only if risk is LOW. Off by default (`limits.autoAllow`); the API refuses it on any other operation; the kill switch and permission checks still apply, and each run is audited as `ACTION_AUTO_APPROVED`.
 - HIGH/CRITICAL also need **re-auth** (password/PIN) within the last 5 minutes.
 - `NEEDS_REVIEW` actions may be approved, but are treated like HIGH: re-auth is required (DECISIONS C).
 

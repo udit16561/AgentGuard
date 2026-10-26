@@ -1,19 +1,23 @@
 import { h, icon, toolIcon, clear } from '../dom.js';
 import { api } from '../api.js';
-import { state, toolName } from '../state.js';
+import { state, toolName, canAutoAllow } from '../state.js';
 import { statusChip, openDialog, say, errorText } from '../components.js';
 
 const csv = s => s.split(',').map(x => x.trim()).filter(Boolean);
+// which limits form a tool gets
+const KIND = { payments: 'money', gmail: 'messaging', whatsapp: 'messaging', calendar: 'messaging', x: 'posting', instagram: 'posting', linkedin: 'posting', blog: 'posting', clock: 'none' };
 const describeLimits = l => [
   l.dailyCap != null && `daily cap ${l.dailyCap}${l.currency ? ` ${l.currency}` : ''}`,
   l.maxAmount != null && `max ${l.maxAmount} per action`,
+  l.allowedPayees?.length && `only pay: ${l.allowedPayees.join(', ')}`,
   l.knownPayees?.length && `known payees: ${l.knownPayees.join(', ')}`,
-  l.knownRecipients?.length && `known contacts: ${l.knownRecipients.join(', ')}`,
   l.allowedRecipients?.length && `only to: ${l.allowedRecipients.join(', ')}`,
-  l.timeWindow && `hours ${l.timeWindow.start}–${l.timeWindow.end}`
+  l.knownRecipients?.length && `known contacts: ${l.knownRecipients.join(', ')}`,
+  l.maxRecipients != null && `at most ${l.maxRecipients} recipients`,
+  l.timeWindow && `${l.enforceHours ? 'only' : 'flag outside'} ${l.timeWindow.start}–${l.timeWindow.end}`
 ].filter(Boolean).join(' · ');
 
-/** Agents (create, pause, rotate key shown once) and their per-tool, per-operation permissions, OFF by default. */
+/** Agents (create, pause, rotate key shown once) and their permissions: per-operation switches, OFF by default, with one limits form per tool. */
 export async function render(view, agentId) {
   let agents = await api.agents();
   let selected = agents.find(a => a.id === agentId) ?? agents[0];
@@ -32,7 +36,7 @@ export async function render(view, agentId) {
 
   view.append(
     h('div', { class: 'head' }, h('div', {}, h('h1', { id: 'title', tabindex: '-1' }, 'Agents and permissions'),
-      h('p', {}, 'Every permission starts OFF. Turn on only the operations an agent needs, and add limits.'))),
+      h('p', {}, 'Every permission starts OFF. Turn on only what an agent needs, and set limits for each tool.'))),
     h('div', { class: 'grid-2' },
       h('section', { class: 'card', 'aria-labelledby': 'ag-h' }, h('h2', { id: 'ag-h' }, 'Agents'), agentBox, keyBox, form),
       h('section', { class: 'card', 'aria-labelledby': 'pm-h' }, h('h2', { id: 'pm-h' }, 'Permissions'), permBox)));
@@ -69,66 +73,106 @@ export async function render(view, agentId) {
     const connected = new Set(tools.filter(t => t.connected).map(t => t.tool));
     const byTool = new Map();
     for (const p of perms) { if (!byTool.has(p.tool)) byTool.set(p.tool, []); byTool.get(p.tool).push(p); }
-    clear(permBox).append(h('p', { class: 'fine' }, `Showing permissions for `, h('b', {}, selected.name), '.'),
-      ...[...byTool].map(([tool, ops]) => h('section', { class: 'perm-tool', 'aria-labelledby': `pt-${tool}` },
-        h('header', {}, h('span', { class: 'ic' }, toolIcon(tool)), h('b', { id: `pt-${tool}` }, toolName(tool)),
-          connected.has(tool) ? h('span', { class: 'badge st-COMPLETED' }, 'Connected') : h('a', { class: 'link', href: '#/tools' }, 'Not connected: connect in Tools')),
-        ...ops.map(p => permRow(p)))));
+    clear(permBox).append(h('p', { class: 'fine' }, 'Showing permissions for ', h('b', {}, selected.name), '.'),
+      ...[...byTool].map(([tool, ops]) => toolSection(tool, ops, connected.has(tool))));
+  }
+
+  function toolSection(tool, ops, isConnected) {
+    const writes = ops.filter(p => p.write);
+    const summary = h('span', { id: `limits-summary-${tool}` }, describeLimits(writes.find(p => Object.keys(p.limits ?? {}).length)?.limits ?? {}) || 'No limits set');
+    const edit = KIND[tool] !== 'none' ? h('button', { type: 'button', class: 'btn sm ghost', id: `limits-${tool}`, 'aria-label': `Limits for ${toolName(tool)}` }, 'Limits') : null;
+    edit?.addEventListener('click', () => limitsDialog(tool, writes, summary));
+    return h('section', { class: 'perm-tool', 'aria-labelledby': `pt-${tool}` },
+      h('header', {}, h('span', { class: 'ic' }, toolIcon(tool)), h('b', { id: `pt-${tool}` }, toolName(tool)),
+        isConnected ? h('span', { class: 'badge st-COMPLETED' }, 'Connected') : h('a', { class: 'link', href: '#/tools' }, 'Not connected: connect in Tools'), edit),
+      KIND[tool] !== 'none' ? h('div', { class: 'tool-limits' }, h('b', {}, 'Limits:'), summary) : null,
+      ...ops.map(permRow));
   }
 
   function permRow(p) {
     const sw = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(p.allowed), id: `perm-${p.tool}-${p.operation}`, 'aria-label': `Allow ${selected.name} to ${p.label} on ${toolName(p.tool)}` });
-    const limits = h('p', { class: 'limits' }, describeLimits(p.limits));
     sw.addEventListener('click', async () => {
       sw.disabled = true;
       try {
         await api.setPermissions(selected.id, [{ tool: p.tool, operation: p.operation, allowed: !p.allowed }]);
         p.allowed = !p.allowed; sw.setAttribute('aria-checked', String(p.allowed));
+        if (autoSw) autoSw.disabled = !p.allowed;
         say(`${p.label} on ${toolName(p.tool)} is now ${p.allowed ? 'allowed' : 'off'} for ${selected.name}.`);
       } catch (e) { say(errorText(e)); }
       sw.disabled = false;
     });
-    const edit = p.write ? h('button', { type: 'button', class: 'btn sm ghost', 'aria-label': `Limits for ${p.label} on ${toolName(p.tool)}` }, 'Limits') : null;
-    edit?.addEventListener('click', () => limitsDialog(p, limits));
-    return h('div', { class: 'perm-row' }, h('span', { class: 'lbl' }, p.label, h('span', {}, p.write ? 'Needs your approval each time' : 'Read only')), edit, sw, limits);
+
+    // auto-allow: reads and alarms only, LOW risk only, off by default, and every run is still in the audit log
+    let autoSw = null;
+    if (canAutoAllow(p.tool, p.operation)) {
+      autoSw = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(!!p.limits?.autoAllow), id: `auto-${p.tool}-${p.operation}`,
+        'aria-label': `Run ${p.label} on ${toolName(p.tool)} without asking when the risk is LOW`, disabled: !p.allowed });
+      autoSw.addEventListener('click', async () => {
+        const next = !p.limits?.autoAllow;
+        autoSw.disabled = true;
+        try {
+          await api.setPermissions(selected.id, [{ tool: p.tool, operation: p.operation, allowed: p.allowed, limits: { ...(p.limits ?? {}), autoAllow: next } }]);
+          p.limits = { ...(p.limits ?? {}), autoAllow: next };
+          autoSw.setAttribute('aria-checked', String(next));
+          say(next ? `${p.label} now runs without asking when the risk is LOW. Every run is still logged.` : `${p.label} asks you again every time.`);
+        } catch (e) { say(errorText(e)); }
+        autoSw.disabled = !p.allowed;
+      });
+    }
+    return h('div', { class: 'perm-row' },
+      h('span', { class: 'lbl' }, p.label, h('span', {}, p.write ? (canAutoAllow(p.tool, p.operation) ? 'Asks you, unless auto-allowed' : 'Needs your approval each time') : 'Read only')),
+      autoSw ? h('span', { class: 'auto' }, autoSw, 'Auto-allow LOW risk') : null,
+      sw);
   }
 
-  function limitsDialog(p, limitsText) {
-    const l = p.limits ?? {};
-    const num = (id, label, v) => h('label', { class: 'field', for: id }, label, h('input', { class: 'input', id, type: 'number', min: '0', step: 'any', value: v ?? '' }));
+  function limitsDialog(tool, writes, summaryEl) {
+    const l = writes.find(p => Object.keys(p.limits ?? {}).length)?.limits ?? {};
+    const kind = KIND[tool];
+    const num = (id, label, v, hint) => h('label', { class: 'field', for: id }, label, hint ? h('small', {}, hint) : null, h('input', { class: 'input', id, type: 'number', min: '0', step: 'any', value: v ?? '' }));
     const txt = (id, label, v, hint) => h('label', { class: 'field', for: id }, label, hint ? h('small', {}, hint) : null, h('input', { class: 'input', id, value: v ?? '' }));
-    const money = p.tool === 'payments';
-    const body = h('div', { class: 'detail' },
-      money ? h('div', { class: 'kv' }, num('lim-cap', 'Daily cap', l.dailyCap), num('lim-max', 'Max per action', l.maxAmount)) : null,
-      money ? h('div', { class: 'kv' }, txt('lim-cur', 'Currency', l.currency ?? 'INR', '3 letters, e.g. INR'), txt('lim-payees', 'Known payees', (l.knownPayees ?? []).join(', '), 'Comma separated. New payees raise the risk.')) : null,
-      !money ? txt('lim-known', 'Known contacts', (l.knownRecipients ?? []).join(', '), 'Comma separated. New contacts raise the risk.') : null,
-      !money ? txt('lim-allowed', 'Only allow these recipients', (l.allowedRecipients ?? []).join(', '), 'Leave empty to allow anyone (with approval).') : null,
-      h('div', { class: 'kv' }, h('label', { class: 'field', for: 'lim-start' }, 'Allowed from', h('input', { class: 'input', id: 'lim-start', type: 'time', value: l.timeWindow?.start ?? '' })),
-        h('label', { class: 'field', for: 'lim-end' }, 'Allowed until', h('input', { class: 'input', id: 'lim-end', type: 'time', value: l.timeWindow?.end ?? '' }))),
-      h('p', { class: 'fine' }, 'Limits never replace approval: every write action still waits for you.'));
+    const enforce = h('input', { type: 'checkbox', id: 'lim-enforce', checked: !!l.enforceHours });
+    const sections = [];
+    if (kind === 'money') sections.push(
+      h('div', { class: 'kv' }, num('lim-cap', 'Daily cap', l.dailyCap), num('lim-max', 'Max per payment', l.maxAmount)),
+      h('div', { class: 'kv' }, txt('lim-cur', 'Currency', l.currency ?? 'INR', '3 letters'), txt('lim-payees', 'Allowed payees', (l.allowedPayees ?? []).join(', '), 'Only these can be paid. Empty: anyone, with approval.')),
+      txt('lim-known-payees', 'Known payees', (l.knownPayees ?? []).join(', '), 'Paying anyone else raises the risk.'));
+    if (kind === 'messaging' || kind === 'posting') sections.push(
+      h('p', { class: 'sub-h' }, kind === 'posting' ? 'Direct messages' : tool === 'calendar' ? 'Attendees' : 'Recipients'),
+      txt('lim-allowed', `Allowed ${tool === 'calendar' ? 'attendees' : 'recipients'}`, (l.allowedRecipients ?? []).join(', '), 'Only these. Empty: anyone, with approval.'),
+      txt('lim-known', 'Known contacts', (l.knownRecipients ?? []).join(', '), 'Anyone else raises the risk.'),
+      num('lim-bulk', 'Bulk limit', l.maxRecipients, 'Most recipients in one action. More is blocked.'));
+    if (kind === 'posting') sections.push(
+      h('p', { class: 'sub-h' }, 'Allowed hours'),
+      h('div', { class: 'kv' }, h('label', { class: 'field', for: 'lim-start' }, 'From', h('input', { class: 'input', id: 'lim-start', type: 'time', value: l.timeWindow?.start ?? '' })),
+        h('label', { class: 'field', for: 'lim-end' }, 'Until', h('input', { class: 'input', id: 'lim-end', type: 'time', value: l.timeWindow?.end ?? '' }))),
+      h('label', { class: 'actions', for: 'lim-enforce' }, enforce, 'Block posts outside these hours (otherwise they are only flagged as riskier)'));
     const error = h('p', { class: 'err', role: 'alert', hidden: true });
-    body.append(error);
+    const body = h('div', { class: 'detail' }, ...sections, h('p', { class: 'fine' }, `Applies to every action ${toolName(tool)} can take. Limits never replace approval.`), error);
     const back = h('button', { type: 'button', class: 'btn ghost' }, 'Cancel');
     const save = h('button', { type: 'button', class: 'btn primary', id: 'save-limits' }, 'Save limits');
-    const dlg = openDialog({ title: `Limits: ${p.label} on ${toolName(p.tool)}`, body, actions: [back, save] });
+    const dlg = openDialog({ title: `Limits for ${toolName(tool)}`, body, actions: [back, save] });
     back.addEventListener('click', () => dlg.close());
     save.addEventListener('click', async () => {
       const val = id => document.getElementById(id)?.value.trim() ?? '';
       const limits = {};
-      if (money) {
+      if (kind === 'money') {
         if (val('lim-cap')) limits.dailyCap = Number(val('lim-cap'));
         if (val('lim-max')) limits.maxAmount = Number(val('lim-max'));
         if (val('lim-cur')) limits.currency = val('lim-cur').toUpperCase();
-        if (val('lim-payees')) limits.knownPayees = csv(val('lim-payees'));
+        if (val('lim-payees')) limits.allowedPayees = csv(val('lim-payees'));
+        if (val('lim-known-payees')) limits.knownPayees = csv(val('lim-known-payees'));
       } else {
-        if (val('lim-known')) limits.knownRecipients = csv(val('lim-known'));
         if (val('lim-allowed')) limits.allowedRecipients = csv(val('lim-allowed'));
+        if (val('lim-known')) limits.knownRecipients = csv(val('lim-known'));
+        if (val('lim-bulk')) limits.maxRecipients = Math.round(Number(val('lim-bulk')));
       }
-      if (val('lim-start') && val('lim-end')) limits.timeWindow = { start: val('lim-start'), end: val('lim-end') };
+      if (kind === 'posting' && val('lim-start') && val('lim-end')) { limits.timeWindow = { start: val('lim-start'), end: val('lim-end') }; if (enforce.checked) limits.enforceHours = true; }
       try {
-        await api.setPermissions(selected.id, [{ tool: p.tool, operation: p.operation, allowed: p.allowed, limits }]);
-        p.limits = limits; limitsText.textContent = describeLimits(limits);
-        dlg.close(); say('Limits saved.');
+        // the same limits on every write operation of the tool; each keeps its own on/off switch and auto-allow
+        await api.setPermissions(selected.id, writes.map(p => ({ tool, operation: p.operation, allowed: p.allowed, limits: { ...limits, ...(p.limits?.autoAllow ? { autoAllow: true } : {}) } })));
+        for (const p of writes) p.limits = { ...limits, ...(p.limits?.autoAllow ? { autoAllow: true } : {}) };
+        summaryEl.textContent = describeLimits(limits) || 'No limits set';
+        dlg.close(); say(`Limits saved for ${toolName(tool)}.`);
       } catch (e) { error.textContent = errorText(e); error.hidden = false; }
     });
   }

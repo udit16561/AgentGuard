@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { toolName, opLabel } from '../state.js';
 import { OPEN, INTENT, fmtTime, countdown } from '../format.js';
 import { statusChip, riskBadge, flagChip, modeBadge, actionTitle, payloadFields, pipeline, openDialog, say, errorText } from '../components.js';
+import { preview, changesCard } from '../previews.js';
 
 /**
  * Review: the queue plus the full details of one action (docs/FRONTEND_GUIDE.md §2.2).
@@ -66,6 +67,7 @@ export async function render(view, selectedId) {
     if (a.status === 'NEEDS_REVIEW') parts.push(h('div', { class: 'warn', role: 'note' }, h('b', {}, 'AgentGuard is not sure about this one. '), 'Details are missing or the risk check was uncertain, so check everything yourself. Approving needs your password.'));
     if (a.status === 'BLOCKED') parts.push(h('div', { class: 'err', role: 'note' }, `Blocked: ${a.blockReason ?? 'not allowed'}. It cannot run.`));
 
+    parts.push(changesCard(a), preview(a));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-details' }, h('h2', { id: 'd-details' }, 'Exact details'), payloadFields(a.payload)));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-risk' },
       h('div', { class: 'card-h' }, h('h2', { id: 'd-risk' }, 'Intent and risk'), h('span', { class: 'adv' }, 'Advisory')),
@@ -77,15 +79,21 @@ export async function render(view, selectedId) {
       a.reasons.length ? h('div', {}, h('p', { class: 'sub-h' }, 'Why'), h('ul', { class: 'dots', id: 'reasons' }, a.reasons.map(r => h('li', {}, r)))) : h('p', { class: 'empty' }, 'No risk factors found.'),
       h('p', { class: 'fine' }, 'The risk check helps you decide. It never approves anything by itself.')));
 
-    if (a.approval) parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-dec' }, h('h2', { id: 'd-dec' }, 'Your decision'),
-      h('p', {}, `${a.approval.decision === 'APPROVED' ? 'Approved' : 'Rejected'} by you at ${fmtTime(a.approval.decidedAt)}${a.approval.reauthUsed ? ', password confirmed' : ''}.`),
-      a.approval.reason ? h('p', { class: 'muted' }, `Reason: ${a.approval.reason}`) : null));
-    if (a.execution) parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-exe' }, h('h2', { id: 'd-exe' }, 'Result from the provider'),
-      h('p', {}, modeBadge(a.execution.adapterMode), ' ',
-        a.status === 'COMPLETED' ? `Confirmed. Reference ${a.execution.providerRef}.` : a.status === 'FAILED' ? `Failed: ${a.execution.error ?? 'provider error'}.` : 'No confirmation received, so the outcome is unknown.')));
+    const auto = a.approval?.reason === 'AUTO_ALLOWED';
+    if (a.approval) parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-dec' }, h('h2', { id: 'd-dec' }, auto ? 'Auto-approved' : 'Your decision'),
+      h('p', {}, auto ? `Ran without asking at ${fmtTime(a.approval.decidedAt)}, because you auto-allow LOW-risk ${a.intent === 'SET_REMINDER' ? 'alarms' : 'reads'} for this agent.`
+        : `${a.approval.decision === 'APPROVED' ? 'Approved' : 'Rejected'} by you at ${fmtTime(a.approval.decidedAt)}${a.approval.reauthUsed ? ', password confirmed' : ''}.`),
+      a.approval.reason && !auto ? h('p', { class: 'muted' }, `Reason: ${a.approval.reason}`) : null));
+    if (a.execution) {
+      const shown = Object.entries(a.execution.result ?? {}).filter(([, v]) => v != null && typeof v !== 'object').slice(0, 8);
+      parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-exe' }, h('h2', { id: 'd-exe' }, 'Result from the provider'),
+        h('p', {}, modeBadge(a.execution.adapterMode), ' ',
+          a.status === 'COMPLETED' ? `Confirmed. Reference ${a.execution.providerRef}.` : a.status === 'FAILED' ? `Failed: ${a.execution.error ?? 'provider error'}.` : 'No confirmation received, so the outcome is unknown.'),
+        shown.length ? h('dl', { class: 'result' }, shown.map(([k, v]) => [h('dt', {}, k), h('dd', {}, String(v))])) : null));
+    }
 
     if (open) parts.push(decisionBar(a));
-    clear(detail).append(...parts);
+    clear(detail).append(...parts.filter(Boolean));   // native append would print null as text
   }
 
   function decisionBar(a) {

@@ -48,7 +48,7 @@ export const INTENT = {
 export const FLAG = {
   PROMPT_INJECTION: 'Possible prompt injection', HOSTILE_TONE: 'Hostile tone', SENSITIVE_DATA: 'Sensitive data', UNTRUSTED_LINK: 'Untrusted link',
   BULK: 'Bulk', NEW_RECIPIENT: 'New recipient', NEW_PAYEE: 'New payee', LARGE_AMOUNT: 'Large amount', PUBLIC: 'Public', OUTSIDE_HOURS: 'Outside allowed hours',
-  MISSING_DETAILS: 'Missing details', LIMIT_EXCEEDED: 'Over limit', CLASSIFIER_ERROR: 'Risk model unavailable', CLASSIFIER_INVALID: 'Risk model answer unreadable',
+  MISSING_DETAILS: 'Missing details', BULK_LIMIT_EXCEEDED: 'Over bulk limit', LIMIT_EXCEEDED: 'Over limit', CLASSIFIER_ERROR: 'Risk model unavailable', CLASSIFIER_INVALID: 'Risk model answer unreadable',
   LOW_CONFIDENCE: 'Risk model unsure', INTENT_MISMATCH: 'Intent disagreement', UNKNOWN_OPERATION: 'Unknown operation'
 };
 export const EVENT = {
@@ -58,7 +58,7 @@ export const EVENT = {
   KILL_SWITCH_ON: 'Kill switch ON: all agents paused', KILL_SWITCH_OFF: 'Kill switch OFF: agents resumed',
   TOOL_CONNECTED: 'Tool connected', TOOL_DISCONNECTED: 'Tool disconnected', PERMISSION_CHANGED: 'Permission changed',
   ACTION_PROPOSED: 'Action proposed by agent', ACTION_BLOCKED: 'Action blocked', ALERT_SENT: 'Alert sent to you', ACTION_EXPIRED: 'Action expired',
-  APPROVAL_REFUSED: 'Approval refused', ACTION_APPROVED: 'Approved by you', ACTION_REJECTED: 'Rejected by you',
+  APPROVAL_REFUSED: 'Approval refused', ACTION_APPROVED: 'Approved by you', ACTION_AUTO_APPROVED: 'Auto-approved by your rule (LOW risk)', ACTION_REPLACED: 'Replaced by a newer version', ACTION_REJECTED: 'Rejected by you',
   ACTION_SUBMITTED: 'Submitted to the provider', ACTION_COMPLETED: 'Completed, confirmed by the provider', ACTION_UNVERIFIED: 'No confirmation from the provider', ACTION_FAILED: 'Failed at the provider'
 };
 

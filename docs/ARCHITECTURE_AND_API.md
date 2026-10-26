@@ -51,9 +51,9 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - `GET/PUT /api/agents/:id/permissions`
 
 ### Actions
-- `POST /api/actions` — **agent key only**. Body: `{ tool, operation, payload }`. Returns `{ id, status, riskLevel }`.
+- `POST /api/actions` — **agent key only**. Body: `{ tool, operation, payload, replaces? }`. Returns `{ id, status, riskLevel }` (plus `result` when an auto-allowed read or alarm ran at once). `replaces` names the agent's own earlier action for the same tool; an open one becomes `BLOCKED` (`REPLACED`) and the user sees what changed.
 - `GET /api/actions?status=&tool=&agent=` — user
-- `GET /api/actions/:id` — user (agent may read only its own action status)
+- `GET /api/actions/:id` — user (agent may read only its own action status, and its `result` once `COMPLETED`)
 - `POST /api/actions/:id/approve` — user; body `{ payloadHash }`; HIGH/CRITICAL need recent re-auth
 - `POST /api/actions/:id/reject` — user; body `{ reason? }`
 

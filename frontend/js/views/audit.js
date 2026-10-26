@@ -39,6 +39,8 @@ export async function render(view) {
       d.tool && `${toolName(d.tool)}${d.operation ? `.${d.operation}` : ''}`,
       d.riskLevel && `risk ${d.riskLevel}`,
       d.reason && `reason: ${d.reason}`,
+      d.rule === 'autoAllow' && 'by your auto-allow rule',
+      d.replacedBy && `replaced by ${d.replacedBy}`,
       d.allowed != null && `now ${d.allowed ? 'allowed' : 'off'}`,
       d.providerRef && `provider ref ${d.providerRef}`,
       d.error && `error: ${d.error}`,

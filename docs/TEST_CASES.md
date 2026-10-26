@@ -131,3 +131,19 @@ Layers: **U** = unit, **I** = API integration (supertest), **E** = end-to-end (P
 4. Run `npm run demo:agent -- pay 5000 Unknown` and check that it's BLOCKED (over cap).
 5. Turn the kill switch on, propose again, and check that it's refused.
 6. Audit → **Verify chain** shows ✅.
+
+## 5b. Added in M2 (mock tools)
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| ADP (33 cases) | U | Each tool's MOCK adapter, per operation | Realistic provider id and fields; impossible requests (₹0 payment, 281-char post, bad alarm time) are refused |
+| OPS (24 cases) | I | Every write operation of every tool | Pending until approved, then `COMPLETED` with the tool's own result |
+| LIM-01 | I | Payment to a payee not in `allowedPayees` | `403 PAYEE_NOT_ALLOWED` |
+| LIM-02 | I | Message over `maxRecipients` | `403 BULK_LIMIT_EXCEEDED` |
+| LIM-03 / 04 | I | Post outside `timeWindow` | Blocked with `enforceHours`, otherwise allowed and flagged `OUTSIDE_HOURS` |
+| AUTO-01..07 | I | Auto-allow | Off by default; only reads and alarms; only LOW risk; kill switch and raised risk still stop it; every run audited |
+| REP-01..03 | I | Re-proposal with `replaces` | Old open version blocked (`REPLACED`), diff shown; only the agent's own action, same tool |
+| UI-13 | E | Limits form per tool | Payments: cap and allowed payees; messaging: recipients and bulk limit; posting: allowed hours |
+| UI-14 | E | Auto-allow switch | Off by default, only on reads and alarms, run shows in the audit |
+| UI-15 | E | Tool previews | Email draft, post card, meeting card with attendees, payment receipt with the provider's receipt number |
+| UI-16 | E | Re-proposal | "What changed" shows before and after |

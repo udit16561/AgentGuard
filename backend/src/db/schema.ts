@@ -137,6 +137,16 @@ CREATE TABLE IF NOT EXISTS model_usage (
 );
 CREATE INDEX IF NOT EXISTS model_usage_user ON model_usage (user_id, role, created_at);
 
+-- Web Push devices (v0.6.0): one row per push-service endpoint
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY,
   action_id TEXT NOT NULL REFERENCES actions(id),

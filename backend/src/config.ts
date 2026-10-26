@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import dotenv from 'dotenv';
 
-dotenv.config({ quiet: true });
+// tests (vitest and the browser tests) never read the developer's .env, so they run the same on every machine
+if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
 
 export interface Config {
   nodeEnv: string;
@@ -15,6 +16,10 @@ export interface Config {
   preferenceModelProvider: 'none' | 'anthropic';
   preferenceModel: string;
   preferenceModelApiKey: string | null;
+  /** Web Push (VAPID) keys; without both, phone alerts are off */
+  vapidPublicKey: string | null;
+  vapidPrivateKey: string | null;
+  vapidSubject: string;
 }
 
 const num = (v: string | undefined, fallback: number) => {
@@ -45,6 +50,9 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     preferenceModelProvider: process.env.PREFERENCE_MODEL_PROVIDER === 'anthropic' ? 'anthropic' : 'none',
     preferenceModel: process.env.PREFERENCE_MODEL || 'claude-haiku-5-5',
     preferenceModelApiKey: process.env.PREFERENCE_MODEL_API_KEY || null,
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null,
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || null,
+    vapidSubject: process.env.VAPID_SUBJECT || 'mailto:owner@agentguard.dev',
     ...overrides
   };
 }

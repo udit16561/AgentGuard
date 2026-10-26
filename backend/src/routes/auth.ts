@@ -37,7 +37,8 @@ export function authRoutes(ctx: Ctx) {
     db.prepare('INSERT INTO sessions (id, token_hash, user_id, csrf_token, reauth_at, expires_at, created_at) VALUES (?, ?, ?, ?, NULL, ?, ?)')
       .run(newId('ses'), sha256(token), user.id, crypto.randomBytes(24).toString('base64url'), now + config.sessionTtlHours * 3_600_000, now);
     res.cookie(SESSION_COOKIE, token, {
-      httpOnly: true, sameSite: 'strict', secure: config.nodeEnv === 'production', path: '/', maxAge: config.sessionTtlHours * 3_600_000
+      // Secure in production, and whenever the request came over HTTPS (the LAN dev server for phones)
+      httpOnly: true, sameSite: 'strict', secure: config.nodeEnv === 'production' || res.req.secure, path: '/', maxAge: config.sessionTtlHours * 3_600_000
     });
   }
 

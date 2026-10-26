@@ -41,6 +41,15 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 - Optional monthly spend cap per role (USD, from SDK token counts × catalog price): when reached the role switches off (audited by SYSTEM) and the built-in rules take over.
 - Tests use AI SDK mock models only; the browser tests use a fake factory enabled only by `NODE_ENV=test` plus `MODEL_PROVIDER_MODE=fake`.
 
+## 4c. Live alerts and phone notifications (v0.6.0)
+- A notification can only **open the Review screen** (`/#/review/<id>`, checked again in the service worker); it has no approve action, and approving still needs the signed-in app with CSRF, the payload hash and re-auth for HIGH/CRITICAL/NEEDS_REVIEW.
+- Notification text is a short summary ("Helper wants to pay ₹500 to Ravi — Review"): agent-supplied parts are one line, control characters removed, at most 40 characters; message bodies and notes are never included. Payloads are end-to-end encrypted by Web Push.
+- Push endpoints must be real push services (FCM, Mozilla, Windows, Apple) over https, or the server would post to arbitrary URLs (SSRF). At most 10 devices per user; gone (404/410) devices are removed and audited. A push failure never affects the proposal.
+- VAPID keys live in `.env` only. Without both keys push is off and subscribing returns 409.
+- The SSE stream carries only `{ eventType, actionId }`; details come from the authenticated API. It is per user and stops when the session ends.
+- The service worker caches static app files only, never `/api` responses; offline, the app is a read-only shell with no stored account data.
+- `npm run dev:lan` is development only: a local CA (key in git-ignored `backend/.certs/`) signs a ≤ 397-day server certificate for the LAN IP; the session cookie is `Secure` on HTTPS.
+
 ## 5. Agent isolation
 - Agent API keys can only call `POST /api/actions`, read their own action status, and read (`GET /api/agents/me/preferences`) the confirmed preference rules for tools they are allowed to use. They can never write preferences (any other method is `403`), and never see the raw preference text.
 - Agents cannot read provider tokens, other agents' data, settings, permissions, or the audit log.

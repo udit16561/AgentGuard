@@ -49,6 +49,9 @@ export const api = {
   tools: () => request('GET', '/api/tools').then(r => r.tools),
   connect: tool => request('POST', `/api/tools/${encodeURIComponent(tool)}/connect`, {}),
   disconnect: tool => request('DELETE', `/api/tools/${encodeURIComponent(tool)}`),
+  // live mode (Google Calendar): the server returns Google's consent URL; tokens never come to the browser
+  goLive: tool => request('POST', `/api/tools/${encodeURIComponent(tool)}/live`, {}),
+  goMock: tool => request('POST', `/api/tools/${encodeURIComponent(tool)}/mock`, {}),
 
   agents: () => request('GET', '/api/agents').then(r => r.agents),
   createAgent: (name, model) => request('POST', '/api/agents', model ? { name, model } : { name }),

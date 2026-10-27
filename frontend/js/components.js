@@ -10,7 +10,9 @@ export const riskBadge = level => level
   ? h('span', { class: `badge rk-${level}`, 'data-risk': level }, icon(level === 'LOW' ? 'dot' : 'alert', 14, 2.4), RISK[level] ?? level)
   : null;
 export const flagChip = f => h('span', { class: 'flag' }, FLAG[f] ?? f.replace(/_/g, ' ').toLowerCase());
-export const modeBadge = mode => h('span', { class: 'mock', title: mode === 'MOCK' ? 'Simulated: no real action is taken' : 'Live provider' }, mode ?? 'MOCK');
+export const modeBadge = (mode, liveId) => mode === 'LIVE'
+  ? h('span', { class: 'live-badge', id: liveId, title: 'Live: this changes your real account' }, 'LIVE')
+  : h('span', { class: 'mock', title: 'Simulated: no real action is taken' }, mode ?? 'MOCK');
 
 /* ---------- toasts ---------- */
 export function toast(message) {

@@ -52,8 +52,22 @@ CREATE TABLE IF NOT EXISTS tool_connections (
   encrypted_token TEXT,
   scopes TEXT NOT NULL DEFAULT '[]',
   mode TEXT NOT NULL DEFAULT 'MOCK',
+  live_state TEXT,
+  live_since INTEGER,
   connected_at INTEGER NOT NULL,
   UNIQUE (user_id, tool)
+);
+
+-- live OAuth (v0.8.0): one row per consent attempt; single use, 10 minutes, tied to the browser that started it
+CREATE TABLE IF NOT EXISTS oauth_states (
+  state_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  tool TEXT NOT NULL,
+  verifier_enc TEXT NOT NULL,
+  binding_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS permissions (
@@ -85,6 +99,7 @@ CREATE TABLE IF NOT EXISTS actions (
   block_reason TEXT,
   replaces_id TEXT,
   preference_check TEXT,
+  adapter_mode TEXT NOT NULL DEFAULT 'MOCK',
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

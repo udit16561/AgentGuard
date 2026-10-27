@@ -8,6 +8,8 @@ import { CATALOG, operationDef } from '../services/catalog';
 import { newId } from '../services/canonical';
 import { encrypt } from '../services/secrets';
 import { AUTO_ALLOW_INTENTS, getPermission, Limits, permissionMatrix } from '../services/permissions';
+import { liveStatus } from '../integrations/live';
+import { revokeAtGoogle } from '../integrations/google/oauth';
 
 interface ConnectionRow { tool: string; status: string; mode: string; connected_at: number }
 
@@ -32,16 +34,20 @@ export function toolRoutes(ctx: Ctx) {
         // kept, not deleted, after a downgrade; reconnecting needs a plan that includes it
         pausedByPlan: c?.status === 'PAUSED_PLAN',
         locked: c?.status === 'CONNECTED' ? null : ctx.entitlements.lock(req.user!.id, { feature: 'tool', tool }),
-        mode: c?.mode ?? 'MOCK',
+        mode: c?.status === 'CONNECTED' ? c.mode : 'MOCK',
+        live: liveStatus(ctx, req.user!.id, tool),
         connectedAt: c?.status === 'CONNECTED' ? new Date(c.connected_at).toISOString() : null,
         operations: Object.entries(def.operations).map(([operation, o]) => ({ operation, label: o.label, intent: o.intent, write: o.write }))
       };
     }) });
   });
 
-  // mock OAuth: stores an encrypted placeholder token. Live OAuth is milestone M6 and needs owner approval.
+  // mock OAuth: stores an encrypted placeholder token. Live mode is a separate, confirmed step (routes/oauth.ts).
   r.post('/:tool/connect', requireCsrf, (req, res) => {
     const tool = knownTool(req);
+    const existing = db.prepare('SELECT status, mode FROM tool_connections WHERE user_id = ? AND tool = ?').get(req.user!.id, tool) as { status: string; mode: string } | undefined;
+    // already live: "Connect" never quietly drops the Google sign-in
+    if (existing?.status === 'CONNECTED' && existing.mode === 'LIVE') { res.json({ tool, connected: true, mode: 'LIVE' }); return; }
     ctx.entitlements.require(req.user!.id, { feature: 'tool', tool });
     const token = encrypt(config.tokenEncryptionKey, `mock-token-${crypto.randomBytes(12).toString('hex')}`);
     db.prepare(`INSERT INTO tool_connections (id, user_id, tool, status, encrypted_token, scopes, mode, connected_at) VALUES (?, ?, ?, 'CONNECTED', ?, '[]', 'MOCK', ?)
@@ -52,18 +58,20 @@ export function toolRoutes(ctx: Ctx) {
   });
 
   // one-tap revoke: switches off every permission for the tool and blocks its pending actions (PRM-03, J7)
-  r.delete('/:tool', requireCsrf, (req, res) => {
+  r.delete('/:tool', requireCsrf, async (req, res) => {
     const tool = knownTool(req);
     const userId = req.user!.id;
+    // a live sign-in is revoked at Google too (best effort), and the tokens are removed here either way
+    const revoked = await revokeAtGoogle(ctx, userId, tool);
     const disconnect = db.transaction(() => {
-      db.prepare("UPDATE tool_connections SET status = 'DISCONNECTED', encrypted_token = NULL WHERE user_id = ? AND tool = ?").run(userId, tool);
+      db.prepare("UPDATE tool_connections SET status = 'DISCONNECTED', encrypted_token = NULL, mode = 'MOCK', live_state = NULL, live_since = NULL WHERE user_id = ? AND tool = ?").run(userId, tool);
       const perms = db.prepare(`SELECT p.agent_id, p.operation FROM permissions p JOIN agents a ON a.id = p.agent_id WHERE a.user_id = ? AND p.tool = ? AND p.allowed = 1`).all(userId, tool) as { agent_id: string; operation: string }[];
       db.prepare('UPDATE permissions SET allowed = 0, updated_at = ? WHERE tool = ? AND agent_id IN (SELECT id FROM agents WHERE user_id = ?)').run(clock.now(), tool, userId);
       for (const p of perms) audit.append({ userId, actorType: 'SYSTEM', actorId: null, eventType: 'PERMISSION_CHANGED', data: { agentId: p.agent_id, tool, operation: p.operation, allowed: false, reason: 'TOOL_DISCONNECTED' } });
       const pending = db.prepare("SELECT id, agent_id FROM actions WHERE user_id = ? AND tool = ? AND status IN ('PENDING_REVIEW', 'NEEDS_REVIEW')").all(userId, tool) as { id: string; agent_id: string }[];
       db.prepare("UPDATE actions SET status = 'BLOCKED', block_reason = 'TOOL_DISCONNECTED', updated_at = ? WHERE user_id = ? AND tool = ? AND status IN ('PENDING_REVIEW', 'NEEDS_REVIEW')").run(clock.now(), userId, tool);
       for (const a of pending) audit.append({ userId, actorType: 'SYSTEM', actorId: null, eventType: 'ACTION_BLOCKED', actionId: a.id, data: { agentId: a.agent_id, tool, reason: 'TOOL_DISCONNECTED' } });
-      audit.append({ userId, actorType: 'USER', actorId: userId, eventType: 'TOOL_DISCONNECTED', data: { tool, permissionsDisabled: perms.length, actionsBlocked: pending.length } });
+      audit.append({ userId, actorType: 'USER', actorId: userId, eventType: 'TOOL_DISCONNECTED', data: { tool, permissionsDisabled: perms.length, actionsBlocked: pending.length, ...(revoked ? { revokedAtGoogle: true } : {}) } });
     });
     disconnect();
     res.json({ tool, connected: false });

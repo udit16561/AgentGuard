@@ -60,7 +60,7 @@ export async function render(view, selectedId) {
     const open = OPEN.includes(a.status);
     const parts = [
       h('div', { class: 'd-top' },
-        h('p', { class: 'd-kicker' }, h('span', { class: 'ic' }, toolIcon(a.tool)), `${toolName(a.tool)} · ${opLabel(a.tool, a.operation)} · proposed by ${a.agentName ?? 'an agent'}`, modeBadge('MOCK')),
+        h('p', { class: 'd-kicker' }, h('span', { class: 'ic' }, toolIcon(a.tool)), `${toolName(a.tool)} · ${opLabel(a.tool, a.operation)} · proposed by ${a.agentName ?? 'an agent'}`, modeBadge(a.adapterMode, 'live-badge')),
         h('h2', { id: 'detail-h', tabindex: '-1' }, actionTitle(a)),
         h('p', { class: 'fine' }, `${a.id} · ${fmtTime(a.createdAt)}`),
         h('div', { class: 'chips' }, riskBadge(a.riskLevel), statusChip(a.status))),
@@ -69,7 +69,7 @@ export async function render(view, selectedId) {
     if (a.status === 'NEEDS_REVIEW') parts.push(h('div', { class: 'warn', role: 'note' }, h('b', {}, 'AgentGuard is not sure about this one. '), 'Details are missing or the risk check was uncertain, so check everything yourself. Approving needs your password.'));
     if (a.status === 'BLOCKED') parts.push(h('div', { class: 'err', role: 'note' }, `Blocked: ${a.blockReason ?? 'not allowed'}. It cannot run.`));
 
-    parts.push(changesCard(a), preferenceCard(a), preview(a));
+    parts.push(liveNote(a), changesCard(a), preferenceCard(a), preview(a));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-details' }, h('h2', { id: 'd-details' }, 'Exact details'), payloadFields(a.payload)));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-risk' },
       h('div', { class: 'card-h' }, h('h2', { id: 'd-risk' }, 'Intent and risk'), h('span', { class: 'adv' }, 'Advisory')),
@@ -96,6 +96,16 @@ export async function render(view, selectedId) {
 
     if (open) parts.push(decisionBar(a));
     clear(detail).append(...parts.filter(Boolean));   // native append would print null as text
+  }
+
+  /** A LIVE action changes the real calendar: say so, and say whether Google will email anyone. */
+  function liveNote(a) {
+    if (a.adapterMode !== 'LIVE') return null;
+    const people = (a.payload.attendees ?? []).filter(x => !['you', 'me', 'self'].includes(String(x).toLowerCase())).length;
+    const mail = a.payload.sendInvites === true
+      ? `Google will email ${people === 1 ? 'an invitation to 1 person' : `invitations to ${people} people`}.`
+      : 'No invitations will be sent.';
+    return h('div', { class: 'live-note', id: 'live-note', role: 'note' }, h('b', {}, 'LIVE: '), `This changes your real Google Calendar. ${mail}`);
   }
 
   /** "Preference check: follows / breaks" for the tool's confirmed preferences. Advisory, like the risk check, except hard rules, which block. */

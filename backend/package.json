@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "dev:lan": "tsx src/dev/lan.ts",
+    "live:check:calendar": "tsx src/dev/live-check-calendar.ts",
     "build": "tsc -p .",
     "start": "node dist/src/server.js",
     "test": "vitest run",

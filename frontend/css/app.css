@@ -420,3 +420,9 @@ a.row:hover{border-color:var(--line-2)}
 .locked-export{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
 @media (max-width:1100px){ .plans{grid-template-columns:1fr} }
 .plan > .badge{align-self:flex-start}
+/* v0.8.0 live mode: red, never mistaken for the dashed MOCK badge */
+.live-badge{display:inline-block;background:var(--red);color:#fff;border-radius:6px;padding:0 7px;font-size:11px;font-weight:800;letter-spacing:.06em}
+.live-box{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+.live-note{background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:10px;padding:10px 14px}
+.reconnect-bar{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;background:var(--amber-bg);color:var(--amber);border-bottom:1px solid var(--amber);padding:10px 16px;font-weight:700;text-align:center}
+.mode.is-live .dot{background:#EF4444}

@@ -81,6 +81,13 @@ export const api = {
   pushTest: () => request('POST', '/api/push/test', {}),
 
   audit: params => request('GET', `/api/audit${qs(params)}`).then(r => r.events),
+  auditPage: params => request('GET', `/api/audit${qs(params)}`),
+
+  // plans (billing is mocked): plans never grant tool access; safety features are on every plan
+  plans: () => request('GET', '/api/plans'),
+  entitlements: () => request('GET', '/api/me/entitlements'),
+  planPreview: plan => request('GET', `/api/me/plan/preview${qs({ plan })}`),
+  changePlan: plan => request('POST', '/api/me/plan', { plan }),
   verify: () => request('GET', '/api/audit/verify')
 };
 

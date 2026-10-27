@@ -32,7 +32,7 @@ const OPS: [string, string, Record<string, unknown>, string][] = [
 describe('every operation needs approval, then completes with the tool’s own result', () => {
   for (const [tool, operation, payload, key] of OPS) {
     it(`OPS ${tool}.${operation}`, async () => {
-      const ctx = await setup();
+      const ctx = await setup({ plan: 'pro' });   // every tool: the plan whose catalog has them all (v0.7.0)
       await connectTool(ctx, tool);
       await allow(ctx, tool, operation, tool === 'payments' ? { dailyCap: 10000, knownPayees: ['Ravi'] } : { knownRecipients: ['asha@example.com'] });
       const res = await propose(ctx, tool, operation, payload);

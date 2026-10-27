@@ -1,6 +1,6 @@
 import { h, icon, clear } from '../dom.js';
 import { api } from '../api.js';
-import { openDialog, say, errorText } from '../components.js';
+import { openDialog, say, errorText, lockNote } from '../components.js';
 
 const ROLE_TEXT = {
   agent: ['Agent', 'Powers the Assistant chat. It is just another agent: everything it proposes waits for your approval.'],
@@ -18,7 +18,8 @@ const usd = n => `$${Number(n).toFixed(n < 1 ? 3 : 2)}`;
  * Keys are sent once, stored encrypted, and only ever shown as their last 4 characters. Changing keys asks for the password.
  */
 export async function render(view) {
-  const [catalog] = await Promise.all([api.modelCatalog()]);
+  const [catalog, ent] = await Promise.all([api.modelCatalog(), api.entitlements().catch(() => null)]);
+  const roleAllowed = role => !ent || ent.entitlements.modelRoles.roles.includes(role);
   const providers = Object.fromEntries(catalog.providers.map(p => [p.id, p]));
   const rolesBox = h('section', { class: 'card', id: 'model-roles', 'aria-labelledby': 'mr-h' });
   const listBox = h('section', { class: 'card', id: 'model-list', 'aria-labelledby': 'ml-h' });
@@ -92,6 +93,8 @@ export async function render(view) {
       h('h2', { id: 'mr-h' }, 'Roles'),
       ...['agent', 'guard'].map(role => h('div', { class: 'detail' },
         h('label', { class: 'field', for: `role-${role}` }, ROLE_TEXT[role][0], h('small', {}, ROLE_TEXT[role][1]), selects[role]),
+        !roleAllowed(role) ? h('p', { id: `role-lock-${role}` }, lockNote(null, 'the Assistant'))
+          : role === 'guard' && ent && !ent.entitlements.modelRoles.guardTiers.includes('frontier') ? h('p', { class: 'fine' }, 'Your plan allows a local or small guard model. ', lockNote(null, 'any model')) : null,
         h('label', { class: 'field', for: `cap-${role}` }, 'Monthly spend cap (USD, optional)', h('small', {}, 'When reached, the role switches off and the built-in rules take over.'), caps[role]),
         status(role))),
       data.warnings.includes('SAME_PROVIDER')

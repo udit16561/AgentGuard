@@ -88,6 +88,10 @@ export function pipeline(a) {
     h('li', { class: `step ${st.state}` }, h('span', { class: 'node' }, icon(ICON[st.state], 14, 2.8)), h('span', { class: 'sl' }, st.label), h('span', { class: 'ss' }, st.sub))));
 }
 
+/** A locked feature: "Upgrade to unlock", linking to the Plans screen (and naming the plan when known). */
+export const PLAN_NAME = { starter: 'Starter', plus: 'Plus', pro: 'Pro' };
+export const lockNote = (upgradeTo, what = '') => h('a', { class: 'lock', href: '#/plans' }, icon('lock', 14), `Upgrade to unlock${what ? ` ${what}` : ''}`, upgradeTo ? h('span', { class: 'lock-plan' }, ` · ${PLAN_NAME[upgradeTo] ?? upgradeTo}`) : null);
+
 export function errorText(err) {
   const map = {
     PAYLOAD_CHANGED: 'The details changed after you opened them. Nothing was approved; review the latest version.',

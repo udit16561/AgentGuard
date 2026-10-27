@@ -2,7 +2,7 @@ import { h, icon, clear } from '../dom.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { prefs, savePrefs, clearPrefs, applyTheme } from '../format.js';
-import { say } from '../components.js';
+import { say, lockNote } from '../components.js';
 import * as models from './models.js';
 import { pushSupport, currentSubscription, enablePush, disablePush } from '../push.js';
 
@@ -44,7 +44,7 @@ export async function render(view, param) {
         h('p', {}, 'Optional: use your own AI model for the Assistant and as a second opinion on risk. Without one, AgentGuard runs on its built-in rules.'),
         h('a', { class: 'btn', href: '#/settings/models', id: 'open-models' }, icon('chip', 16), 'Manage models')),
       h('section', { class: 'card', 'aria-labelledby': 's-acct' }, h('h2', { id: 's-acct' }, 'Account'),
-        h('p', {}, state.me.email), h('p', { class: 'muted' }, `Plan: ${state.me.plan} (billing is simulated in the prototype)`), logout)));
+        h('p', {}, state.me.email), h('p', { class: 'muted' }, `Plan: ${state.me.plan} (billing is simulated in the prototype)`), h('a', { class: 'btn', href: '#/plans', id: 'open-plans' }, 'Compare plans'), logout)));
 }
 
 /** Phone alerts: turn Web Push on or off for this device. Alerts open the Review screen; they never approve. */
@@ -56,6 +56,7 @@ async function renderAlerts(card) {
   const draw = (...parts) => clear(card).append(...head, status, ...parts);
   let key;
   try { key = await api.pushKey(); } catch { draw(); status.textContent = 'Could not check alert settings.'; return; }
+  if (key.locked) { draw(h('p', {}, 'In-app and live alerts are on for every plan. ', lockNote(key.upgradeTo, 'phone alerts'))); status.textContent = 'Phone alerts are not included in your plan.'; return; }
   if (!key.enabled) { draw(); status.textContent = 'Phone alerts are not set up on this server (VAPID keys missing). Run npm run dev:lan, or add the VAPID keys to backend/.env.'; return; }
   const support = pushSupport();
   if (!support.ok) { draw(); status.textContent = support.why; return; }

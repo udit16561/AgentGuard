@@ -29,6 +29,9 @@ export function toolRoutes(ctx: Ctx) {
       return {
         tool, name: def.name,
         connected: c?.status === 'CONNECTED',
+        // kept, not deleted, after a downgrade; reconnecting needs a plan that includes it
+        pausedByPlan: c?.status === 'PAUSED_PLAN',
+        locked: c?.status === 'CONNECTED' ? null : ctx.entitlements.lock(req.user!.id, { feature: 'tool', tool }),
         mode: c?.mode ?? 'MOCK',
         connectedAt: c?.status === 'CONNECTED' ? new Date(c.connected_at).toISOString() : null,
         operations: Object.entries(def.operations).map(([operation, o]) => ({ operation, label: o.label, intent: o.intent, write: o.write }))
@@ -39,6 +42,7 @@ export function toolRoutes(ctx: Ctx) {
   // mock OAuth: stores an encrypted placeholder token. Live OAuth is milestone M6 and needs owner approval.
   r.post('/:tool/connect', requireCsrf, (req, res) => {
     const tool = knownTool(req);
+    ctx.entitlements.require(req.user!.id, { feature: 'tool', tool });
     const token = encrypt(config.tokenEncryptionKey, `mock-token-${crypto.randomBytes(12).toString('hex')}`);
     db.prepare(`INSERT INTO tool_connections (id, user_id, tool, status, encrypted_token, scopes, mode, connected_at) VALUES (?, ?, ?, 'CONNECTED', ?, '[]', 'MOCK', ?)
       ON CONFLICT(user_id, tool) DO UPDATE SET status = 'CONNECTED', encrypted_token = excluded.encrypted_token, mode = 'MOCK', connected_at = excluded.connected_at`)

@@ -14,10 +14,11 @@ import { createApp } from '../src/app';
 export type Ctx = Awaited<ReturnType<typeof setup>>;
 
 export async function setup(opts: Record<string, unknown> = {}) {
-  const { app, clock, db } = await createApp({ dbPath: ':memory:', ...opts });
+  const { plan, ...appOpts } = opts;   // plan: sign up on a given plan (default Plus, DECISIONS A)
+  const { app, clock, db } = await createApp({ dbPath: ':memory:', ...appOpts });
   const user = request.agent(app); // keeps the session cookie
 
-  await user.post('/api/auth/signup').send({ email: 'owner@test.dev', password: 'Owner#12345' }).expect(201);
+  await user.post('/api/auth/signup').send({ email: 'owner@test.dev', password: 'Owner#12345', ...(plan ? { plan } : {}) }).expect(201);
   const csrf = (await user.get('/api/auth/csrf').expect(200)).body.token as string;
 
   const agentRes = await user.post('/api/agents').set('X-CSRF-Token', csrf).send({ name: 'Helper' }).expect(201);

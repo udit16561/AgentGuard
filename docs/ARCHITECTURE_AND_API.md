@@ -85,7 +85,11 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 - `POST /api/assistant/chat` body `{ messages[] }` → `application/x-ndjson` events `text`, `proposal`, `error`, `done`; 409 `MODEL_UNAVAILABLE` with no agent model or a reached cap
 
 ### Plans
-- `GET /api/plans` · `GET /api/me/entitlements` · `POST /api/me/plan` (mock billing)
+- `GET /api/plans` → `{ plans: [{ id, name, priceInr, entitlements }], neverLocked }`
+- `GET /api/me/entitlements` → `{ plan, entitlements, usage: { agents, connectedTools }, paused: { agents, tools }, neverLocked }`
+- `GET /api/me/plan/preview?plan=` → `{ pauseAgents, pauseTools }` · `POST /api/me/plan` body `{ plan }` (CSRF; mock billing; audited `PLAN_CHANGED`)
+- `GET /api/audit/export?format=csv|json|integrity` (per plan; audited `AUDIT_EXPORTED`); `GET /api/audit` also returns `retentionDays` and `hiddenOlder`
+- Plan-limited calls answer `402 ENTITLEMENT_REQUIRED` with `upgradeTo`
 
 ### Realtime and phone alerts (user only; agent keys get 401)
 - `GET /api/stream` (SSE): `event: ready`, then `event: change` with `{ eventType, actionId }` for every audited change of this user (never payloads); heartbeat every 25 s; closes when the session ends

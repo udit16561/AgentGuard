@@ -26,3 +26,17 @@ export function priceOf(provider: string, modelId: string): Price | null {
 
 export const costUsd = (price: Price | null, inputTokens: number, outputTokens: number) =>
   price ? (inputTokens * price.input + outputTokens * price.output) / 1_000_000 : null;
+
+/**
+ * How big a configured model is, for plan limits: local (Ollama or a localhost server), small (a catalog guard-tier
+ * model), frontier (a catalog agent-tier model), or unknown (any other typed model ID).
+ */
+export type ModelTier = 'local' | 'small' | 'frontier' | 'unknown';
+export function modelTier(m: { provider: string; model_id: string; base_url: string | null }): ModelTier {
+  if (m.provider === 'ollama') return 'local';
+  if (m.base_url) {
+    try { if (['localhost', '127.0.0.1', '[::1]'].includes(new URL(m.base_url).hostname)) return 'local'; } catch { /* not a URL: not local */ }
+  }
+  const entry = CATALOG.models.find(x => x.provider === m.provider && x.modelId === m.model_id);
+  return entry ? (entry.role === 'guard' ? 'small' : 'frontier') : 'unknown';
+}

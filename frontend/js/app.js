@@ -11,8 +11,9 @@ import * as agents from './views/agents.js';
 import * as audit from './views/audit.js';
 import * as settings from './views/settings.js';
 import * as assistant from './views/assistant.js';
+import * as plans from './views/plans.js';
 
-const ROUTES = { dashboard, review, assistant, tools, agents, audit, settings };
+const ROUTES = { dashboard, review, assistant, tools, agents, audit, settings, plans };
 // [route, label, icon, short label for the phone's bottom bar]
 const NAV = [['dashboard', 'Dashboard', 'home', 'Home'], ['review', 'Review', 'inbox', 'Review'], ['assistant', 'Assistant', 'chat', 'Chat'], ['tools', 'Tools', 'plug', 'Tools'], ['agents', 'Agents', 'bot', 'Agents'], ['audit', 'Audit', 'trace', 'Audit'], ['settings', 'Settings', 'gear', 'Settings']];
 const POLL_FAST_MS = 1000;    // no live stream: poll, so new alerts still show well under 3 s (UI-01)

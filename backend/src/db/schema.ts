@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS agents (
   api_key_hash TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'ACTIVE',
   kind TEXT NOT NULL DEFAULT 'external',
+  paused_by_plan INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 

@@ -1,7 +1,7 @@
 import { h, icon, toolIcon, clear } from '../dom.js';
 import { api } from '../api.js';
 import { state, toolName, canAutoAllow } from '../state.js';
-import { statusChip, openDialog, say, errorText } from '../components.js';
+import { statusChip, openDialog, say, errorText, lockNote } from '../components.js';
 
 const csv = s => s.split(',').map(x => x.trim()).filter(Boolean);
 const METHOD = { upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet' };
@@ -38,17 +38,22 @@ const describeLimits = l => [
 /** Agents (create, pause, rotate key shown once) and their permissions: per-operation switches, OFF by default, with one limits form per tool. */
 export async function render(view, agentId) {
   let agents = await api.agents();
+  let ent = await api.entitlements().catch(() => null);
+  const createLock = h('span', { id: 'agent-limit' });
+  const showLimit = () => clear(createLock).append(ent && ent.usage.agents >= ent.entitlements.maxAgents
+    ? h('span', { class: 'fine' }, `Your plan allows ${ent.entitlements.maxAgents} active agent${ent.entitlements.maxAgents === 1 ? '' : 's'}. `, lockNote(null, 'more agents')) : '');
+  showLimit();
   let selected = agents.find(a => a.id === agentId) ?? agents[0];
   const agentBox = h('div', { class: 'rows', id: 'agent-list' });
   const keyBox = h('div', { 'aria-live': 'polite' });
   const permBox = h('div', { class: 'detail', id: 'permissions' });
   const name = h('input', { class: 'input', id: 'new-agent', maxlength: '60', placeholder: 'e.g. Shopping helper' });
   const create = h('button', { type: 'submit', class: 'btn primary', id: 'create-agent' }, 'Create agent');
-  const form = h('form', { class: 'actions' }, h('label', { class: 'field', for: 'new-agent' }, 'New agent name', name), h('div', { class: 'actions' }, create));
+  const form = h('form', { class: 'actions' }, h('label', { class: 'field', for: 'new-agent' }, 'New agent name', name), h('div', { class: 'actions' }, create, createLock));
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (!name.value.trim()) return name.focus();
-    try { const a = await api.createAgent(name.value.trim()); name.value = ''; showKey(a.name, a.apiKey); agents = await api.agents(); selected = agents.find(x => x.id === a.id); renderAgents(); await renderPermissions(); }
+    try { const a = await api.createAgent(name.value.trim()); name.value = ''; showKey(a.name, a.apiKey); agents = await api.agents(); ent = await api.entitlements().catch(() => ent); showLimit(); selected = agents.find(x => x.id === a.id); renderAgents(); await renderPermissions(); }
     catch (err) { say(errorText(err)); }
   });
 
@@ -81,7 +86,8 @@ export async function render(view, agentId) {
       });
       return h('div', { class: 'row' }, h('span', { class: 'ic' }, icon('bot')),
         h('span', { class: 'grow' }, h('span', { class: 't' }, a.name), h('span', { class: 'm' }, a.model ?? 'No model set')),
-        statusChip(state.me?.killSwitch ? 'PAUSED' : a.status), h('span', { class: 'actions' }, pick, pause, rotate));
+        statusChip(state.me?.killSwitch ? 'PAUSED' : a.status), a.pausedByPlan ? h('span', { class: 'badge st-PAUSED', id: `agent-plan-${a.id}` }, 'Paused by plan') : null,
+        h('span', { class: 'actions' }, pick, a.pausedByPlan ? lockNote(null) : pause, rotate));
     }) : [h('p', { class: 'empty' }, 'No agents yet. Create one below.')]));
   }
 

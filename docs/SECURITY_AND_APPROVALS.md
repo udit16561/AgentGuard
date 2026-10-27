@@ -50,6 +50,11 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 - The service worker caches static app files only, never `/api` responses; offline, the app is a read-only shell with no stored account data.
 - `npm run dev:lan` is development only: a local CA (key in git-ignored `backend/.certs/`) signs a ≤ 397-day server certificate for the LAN IP; the session cookie is `Secure` on HTTPS.
 
+## 4d. Plans (v0.7.0)
+- Plans gate features and limits only, through EntitlementService. They never grant a tool connection or a permission, and never lock approvals, the kill switch, alerts or the audit log.
+- A downgrade pauses (never deletes) extra agents and tools; a plan-paused tool blocks proposals and approvals (402) and a plan-paused agent is PAUSED (423), so nothing slips through after a downgrade.
+- Audit retention only limits what is shown: the hash chain keeps and verifies every event. CSV exports neutralise spreadsheet formulas.
+
 ## 5. Agent isolation
 - Agent API keys can only call `POST /api/actions`, read their own action status, and read (`GET /api/agents/me/preferences`) the confirmed preference rules for tools they are allowed to use. They can never write preferences (any other method is `403`), and never see the raw preference text.
 - Agents cannot read provider tokens, other agents' data, settings, permissions, or the audit log.

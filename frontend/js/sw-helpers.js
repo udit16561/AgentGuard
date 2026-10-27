@@ -3,13 +3,13 @@
  * Rules: cache static app files only, never API data; a notification tap may only open a Review screen.
  */
 (function (scope) {
-  var VERSION = 'v0.6.0';
+  var VERSION = 'v0.7.0';
   var STATIC_FILES = [
     '', 'index.html', 'manifest.webmanifest', 'css/app.css',
     'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png',
     'js/app.js', 'js/api.js', 'js/components.js', 'js/dom.js', 'js/format.js', 'js/previews.js', 'js/state.js', 'js/push.js',
     'js/views/agents.js', 'js/views/assistant.js', 'js/views/audit.js', 'js/views/dashboard.js', 'js/views/login.js',
-    'js/views/models.js', 'js/views/review.js', 'js/views/settings.js', 'js/views/tools.js'
+    'js/views/models.js', 'js/views/plans.js', 'js/views/review.js', 'js/views/settings.js', 'js/views/tools.js'
   ];
   var STATIC_PATHS = STATIC_FILES.map(function (f) { return '/' + f; });
   var REVIEW = /^\/#\/review\/act_[A-Za-z0-9_-]{4,64}$/;

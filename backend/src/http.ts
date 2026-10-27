@@ -8,7 +8,7 @@ export type ErrorCode =
 
 /** Thrown anywhere in a route; turned into the documented error format by errorHandler. */
 export class AppError extends Error {
-  constructor(public status: number, public code: ErrorCode, message: string, public actionId?: string) {
+  constructor(public status: number, public code: ErrorCode, message: string, public actionId?: string, public extra?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -17,7 +17,7 @@ export const notFound = (what = 'Not found') => new AppError(404, 'NOT_FOUND', w
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message, ...(err.actionId ? { actionId: err.actionId } : {}) } });
+    res.status(err.status).json({ error: { code: err.code, message: err.message, ...(err.actionId ? { actionId: err.actionId } : {}), ...(err.extra ?? {}) } });
     return;
   }
   if (err instanceof ZodError) {

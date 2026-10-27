@@ -1,6 +1,6 @@
 import { h, icon, clear } from './dom.js';
 import { api, ApiError, setUnauthenticatedHandler } from './api.js';
-import { state, setCatalog } from './state.js';
+import { state, setCatalog, toolName } from './state.js';
 import { applyTheme, OPEN } from './format.js';
 import { say } from './components.js';
 import { renderLogin } from './views/login.js';
@@ -12,6 +12,7 @@ import * as audit from './views/audit.js';
 import * as settings from './views/settings.js';
 import * as assistant from './views/assistant.js';
 import * as plans from './views/plans.js';
+import { startLive } from './live.js';
 
 const ROUTES = { dashboard, review, assistant, tools, agents, audit, settings, plans };
 // [route, label, icon, short label for the phone's bottom bar]
@@ -20,7 +21,7 @@ const POLL_FAST_MS = 1000;    // no live stream: poll, so new alerts still show 
 const POLL_LIVE_MS = 15_000;  // live stream connected: polling is only a safety net
 
 const root = document.getElementById('root');
-let routeGen = 0, cleanup = null, timer = null, routed = false, navEl = null, barEl = null, viewEl = null, stream = null, pollMs = POLL_FAST_MS;
+let routeGen = 0, cleanup = null, timer = null, routed = false, navEl = null, barEl = null, viewEl = null, stream = null, pollMs = POLL_FAST_MS, modeFootEl;
 
 function stop() {
   if (timer) clearInterval(timer); timer = null; if (cleanup) cleanup(); cleanup = null;
@@ -72,12 +73,13 @@ async function startShell() {
       h('p', { class: 'tag' }, 'Alert before action. Trace everything.'),
       navEl,
       h('div', { class: 'side-foot' },
-        h('div', { class: 'mode' }, h('span', { class: 'dot', 'aria-hidden': 'true' }), h('div', {}, h('b', {}, 'MOCK mode'), 'Tools are simulated. No real payments, posts or messages.')),
+        modeFootEl = h('div', { class: 'mode', id: 'mode-foot' }),
         h('p', { class: 'who' }, state.me.email))),
     h('div', { class: 'col' }, barEl, h('main', { id: 'main', tabindex: '-1' }, viewEl)))
   );
   renderNav();
   renderBar();
+  renderModeFoot();
   if (!routed) { window.addEventListener('hashchange', route); routed = true; }
   route();
   tick();
@@ -92,10 +94,25 @@ function renderNav() {
     key === 'review' && state.pendingCount ? [h('span', { class: 'count', 'aria-hidden': 'true' }, String(state.pendingCount)), h('span', { class: 'sr' }, `, ${state.pendingCount} waiting`)] : null)));
 }
 
-// kill switch banner on every screen (J7), and the offline notice
+/** MOCK, or which tools are LIVE (v0.8.0) */
+function renderModeFoot() {
+  const live = state.me?.integrations?.live ?? [];
+  modeFootEl.classList.toggle('is-live', live.length > 0);
+  clear(modeFootEl).append(h('span', { class: 'dot', 'aria-hidden': 'true' }), live.length
+    ? h('div', {}, h('b', {}, `LIVE: ${live.map(toolName).join(', ')}`), 'Approved actions change your real account. Every other tool is simulated.')
+    : h('div', {}, h('b', {}, 'MOCK mode'), 'Tools are simulated. No real payments, posts or messages.'));
+}
+
+// kill switch banner on every screen (J7), "Reconnect Google", and the offline notice
 function renderBar() {
   clear(barEl);
   if (!navigator.onLine) barEl.append(h('div', { class: 'offline-bar', role: 'status', id: 'offline-bar' }, 'Offline: read-only. Nothing can be approved until you are back online.'));
+  const reconnect = state.me?.integrations?.reconnect ?? [];
+  if (reconnect.length) {
+    const btn = h('button', { type: 'button', class: 'btn sm', id: 'bar-reconnect' }, 'Reconnect Google');
+    btn.addEventListener('click', () => startLive(reconnect[0], toolName(reconnect[0]), { reconnect: true }));
+    barEl.append(h('div', { class: 'reconnect-bar', role: 'status', id: 'reconnect-bar' }, `Google ${reconnect.map(toolName).join(', ')} needs you to sign in again. Live actions cannot run until then.`, btn));
+  }
   if (!state.me?.killSwitch) return;
   const resume = h('button', { type: 'button', class: 'btn sm', id: 'bar-resume' }, icon('play', 16), 'Resume agents');
   resume.addEventListener('click', async () => {
@@ -110,16 +127,18 @@ async function tick() {
     const [me, actions] = await Promise.all([api.me(), api.actions({ limit: 200 })]);
     const pending = actions.filter(a => OPEN.includes(a.status)).length;
     const killChanged = !!me.killSwitch !== !!state.me?.killSwitch;
+    const liveChanged = JSON.stringify(me.integrations) !== JSON.stringify(state.me?.integrations);
     state.me = me;
+    if (liveChanged) renderModeFoot();
     if (pending !== state.pendingCount) { state.pendingCount = pending; renderNav(); }
-    if (killChanged) renderBar();
+    if (killChanged || liveChanged) renderBar();
     window.dispatchEvent(new CustomEvent('ag:tick', { detail: { actions, me } }));
   } catch { /* a 401 is handled by the api module; other errors retry on the next tick */ }
 }
 
 async function route() {
   if (!viewEl) return;
-  const [name, param] = location.hash.replace(/^#\/?/, '').split('/');
+  const [name, param] = location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
   const view = ROUTES[name] ?? dashboard;
   if (cleanup) cleanup();
   cleanup = null;
@@ -141,7 +160,7 @@ async function route() {
 }
 
 // views announce state changes (kill switch, decisions) with this event instead of importing the shell
-window.addEventListener('ag:changed', () => { if (navEl) { renderBar(); renderNav(); } });
+window.addEventListener('ag:changed', () => { if (navEl) { renderBar(); renderNav(); tick(); } });
 
 applyTheme();
 setUnauthenticatedHandler(showLogin);

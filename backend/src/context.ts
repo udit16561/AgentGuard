@@ -6,6 +6,7 @@ import type { PreferenceModel } from './services/preferences/parse';
 import type { ModelFactory } from './models/providers';
 import type { PushSender } from './services/notify';
 import type { EntitlementService } from './services/entitlements';
+import type { GoogleClient } from './integrations/google/oauth';
 
 /** Everything a route or service needs, built once per app in createApp. */
 export interface Ctx {
@@ -24,6 +25,8 @@ export interface Ctx {
   pushSender?: PushSender;
   /** every plan check goes through here (docs/PLANS_AND_ENTITLEMENTS.md) */
   entitlements: EntitlementService;
+  /** Google's HTTP for the live Calendar adapter; tests pass a mock, and a test build without one cannot reach Google */
+  google: GoogleClient;
 }
 
 export interface UserRow {

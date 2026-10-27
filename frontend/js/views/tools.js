@@ -1,6 +1,7 @@
 import { h, toolIcon, clear } from '../dom.js';
 import { api } from '../api.js';
 import { modeBadge, openDialog, say, errorText, lockNote } from '../components.js';
+import { startLive, stopLive, liveReturn } from '../live.js';
 
 const MAX = 500;
 const EXAMPLES = {
@@ -23,6 +24,8 @@ export async function render(view) {
       h('p', {}, 'Connect the tools your agents may use, and tell AgentGuard how you like each one used. Connecting grants nothing: each operation still needs its own permission under Agents.'))),
     grid);
 
+  liveReturn();
+
   async function load(focusId) {
     const tools = await api.tools();
     const prefs = await Promise.all(tools.map(t => api.preferences(t.tool).catch(() => ({ text: '', rules: [] }))));
@@ -33,13 +36,33 @@ export async function render(view) {
         : h('button', { type: 'button', class: `btn sm ${t.connected ? 'ghost' : 'primary'}`, id: `tool-${t.tool}` }, t.connected ? 'Disconnect' : 'Connect');
       if (btn.tagName === 'BUTTON') btn.addEventListener('click', () => (t.connected ? disconnect(t) : connect(t)));
       return h('article', { class: 'card tool', 'aria-labelledby': `tn-${t.tool}` },
-        h('div', { class: 'top' }, h('span', { class: 'ic' }, toolIcon(t.tool, 20)), h('span', { class: 'name', id: `tn-${t.tool}` }, t.name), modeBadge(t.mode)),
+        h('div', { class: 'top' }, h('span', { class: 'ic' }, toolIcon(t.tool, 20)), h('span', { class: 'name', id: `tn-${t.tool}` }, t.name), modeBadge(t.mode, `live-badge-${t.tool}`)),
         h('p', { class: 'fine' }, `${t.operations.length} operations · ${writes} need your approval`),
         h('p', {}, t.connected ? h('span', { class: 'badge st-COMPLETED' }, 'Connected') : t.pausedByPlan ? h('span', { class: 'badge st-PAUSED', id: `paused-${t.tool}` }, 'Paused by plan') : h('span', { class: 'badge st-EXPIRED' }, 'Not connected')),
         h('div', { class: 'actions' }, btn),
+        liveBox(t),
         preferencesBox(t, prefs[i]));
     }));
     if (focusId) document.getElementById(focusId)?.focus();
+  }
+
+  /** Live mode, for a tool that has one (Google Calendar): its own confirm dialog and password, never a quiet toggle. */
+  function liveBox(t) {
+    if (!t.connected || !t.live || t.live.reason === 'NO_LIVE_ADAPTER') return null;
+    if (t.mode === 'LIVE') {
+      const back = h('button', { type: 'button', class: 'btn sm ghost', id: `mock-${t.tool}` }, 'Switch back to MOCK');
+      back.addEventListener('click', () => stopLive(t.tool, t.name, () => load(`live-${t.tool}`)));
+      const again = t.live.reconnect ? h('button', { type: 'button', class: 'btn sm danger', id: `reconnect-${t.tool}` }, 'Reconnect Google') : null;
+      again?.addEventListener('click', () => startLive(t.tool, t.name, { reconnect: true }));
+      return h('div', { class: 'live-box' },
+        h('p', { class: 'fine' }, t.live.reconnect ? 'Google needs you to sign in again before live actions can run.' : 'Approved actions change your real Google Calendar. No invitations unless an action you approve says so.'),
+        h('div', { class: 'actions' }, again, back));
+    }
+    if (t.live.locked) return h('div', { class: 'live-box' }, lockNote(t.live.locked.upgradeTo, 'live mode'));
+    if (!t.live.available) return null;   // INTEGRATION_MODE or the Google client is not set on this server
+    const go = h('button', { type: 'button', class: 'btn sm', id: `live-${t.tool}` }, 'Use live Google Calendar…');
+    go.addEventListener('click', () => startLive(t.tool, t.name));
+    return h('div', { class: 'live-box' }, h('div', { class: 'actions' }, go));
   }
 
   function savedList(tool, rules) {

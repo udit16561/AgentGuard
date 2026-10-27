@@ -32,8 +32,8 @@ Starter/Plus/Pro through EntitlementService: agents, tools and catalog, audit re
 ## M5 — Intent model layer
 The guard role (v0.5.0) is the first model layer; still to do: evaluation fixtures to measure a guard model's accuracy.
 
-## M6 — First live integration (owner approval required)
-One provider via its official API (e.g., Google Calendar), sandbox/test account first.
+## M6 — First live integration (v0.8.0, owner-approved)
+Google Calendar via Google's own OAuth and Calendar API: view, create, update, cancel. LIVE only when switched on per tool (confirm + password) with `INTEGRATION_MODE=live`; gates re-checked right before each call; no invitations unless approved; Reconnect Google banner; manual `npm run live:check:calendar`. Every other tool stays MOCK.
 
 ## Later
 Native wrappers (Capacitor/Tauri), team accounts, policy templates.

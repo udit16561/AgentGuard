@@ -55,6 +55,15 @@ Any change to amount, currency, recipient, content, media, time, or attendees pr
 - A downgrade pauses (never deletes) extra agents and tools; a plan-paused tool blocks proposals and approvals (402) and a plan-paused agent is PAUSED (423), so nothing slips through after a downgrade.
 - Audit retention only limits what is shown: the hash chain keeps and verifies every event. CSV exports neutralise spreadsheet formulas.
 
+## 4e. Live Google Calendar (v0.8.0; docs/LIVE_GOOGLE_CALENDAR.md)
+- The only live adapter, owner-approved. Live needs `INTEGRATION_MODE=live`, the Google client in `.env`, a plan with live integrations, and Calendar switched to LIVE on the Tools screen (separate confirm dialog plus password). Everything else stays MOCK.
+- An action runs in the mode it was **proposed** in. Switching modes blocks open actions (`MODE_CHANGED`); a LIVE action whose conditions no longer hold is refused, never run as MOCK.
+- Right before the Google call (after any token refresh) every gate is checked again; a closed gate means BLOCKED with nothing sent (`stage: BEFORE_PROVIDER`).
+- Invitations only when the approved payload says `sendInvites: true` (`sendUpdates=none` otherwise); the field is in the payload hash.
+- The Google event ID is the provider reference. A missing ID, a timeout or a 5xx on a write is UNKNOWN; writes are never retried; Google's error text is never passed on.
+- OAuth: code + PKCE (S256), scope `calendar.events` only, single-use 10-minute state bound to the starting browser (Lax cookie). Tokens encrypted at rest; never sent to the frontend, audit or logs; revoked at Google on switch-back or disconnect. `invalid_grant` or (Testing mode) a 7-day-old refresh token shows "Reconnect Google" and blocks live proposals.
+- Tests mock Google's HTTP; a test build without a mock cannot reach Google. `npm run live:check:calendar` is a manual, owner-run check.
+
 ## 5. Agent isolation
 - Agent API keys can only call `POST /api/actions`, read their own action status, and read (`GET /api/agents/me/preferences`) the confirmed preference rules for tools they are allowed to use. They can never write preferences (any other method is `403`), and never see the raw preference text.
 - Agents cannot read provider tokens, other agents' data, settings, permissions, or the audit log.

@@ -4,7 +4,7 @@ import { canonicalJSON } from './canonical';
 export interface ActionRow {
   id: string; user_id: string; agent_id: string; tool: string; operation: string; payload: string; payload_hash: string;
   intent: string | null; risk_level: string | null; risk_score: number | null; confidence: number | null;
-  risk_reasons: string; flags: string; status: string; block_reason: string | null; replaces_id?: string | null; preference_check?: string | null;
+  risk_reasons: string; flags: string; status: string; block_reason: string | null; replaces_id?: string | null; preference_check?: string | null; adapter_mode?: string;
   created_at: number; expires_at: number; updated_at: number;
 }
 
@@ -51,6 +51,8 @@ export function actionView(ctx: Ctx, a: ActionRow) {
     intent: a.intent, riskLevel: a.risk_level, riskScore: a.risk_score, confidence: a.confidence,
     reasons: JSON.parse(a.risk_reasons), flags: JSON.parse(a.flags),
     status: a.status, blockReason: a.block_reason, requiresReauth: needsReauth(a),
+    // the mode it was proposed in, and the only mode it can run in (a LIVE action never falls back to MOCK)
+    adapterMode: a.adapter_mode ?? 'MOCK',
     preferenceCheck: a.preference_check ? JSON.parse(a.preference_check) : null,
     createdAt: new Date(a.created_at).toISOString(), expiresAt: new Date(a.expires_at).toISOString(),
     approval: approval ? { decision: approval.decision, payloadHash: approval.payload_hash, reauthUsed: !!approval.reauth_used, reason: approval.reason, decidedAt: new Date(approval.decided_at).toISOString() } : null,

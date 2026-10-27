@@ -61,6 +61,7 @@ npm run db:seed             # demo user, agent and mock tools (MOCK mode)
 npm run dev                 # app and API at http://localhost:4000 (the backend also serves the frontend)
 
 # On your phone, same Wi-Fi (v0.6.0): HTTPS on the LAN IP, needed for the service worker and Web Push
+npm run live:check:calendar # (backend) manual, owner-run: creates then cancels one test event in the live Google Calendar
 npm run dev:lan             # prints http://<LAN-IP>:4080 (install the dev certificate once) and https://<LAN-IP>:4443
 #   First run adds VAPID keys, TOKEN_ENCRYPTION_KEY and DATABASE_URL to backend/.env (git-ignored).
 #   Certificates live in backend/.certs/ (git-ignored). Set LAN_IP=... to pick another address.

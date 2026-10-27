@@ -4,7 +4,8 @@ import { ZodError } from 'zod';
 export type ErrorCode =
   | 'UNAUTHENTICATED' | 'PERMISSION_DENIED' | 'ENTITLEMENT_REQUIRED' | 'APPROVAL_REQUIRED' | 'APPROVAL_EXPIRED'
   | 'PAYLOAD_CHANGED' | 'REAUTH_REQUIRED' | 'AGENT_PAUSED' | 'VALIDATION_ERROR' | 'PROVIDER_ERROR'
-  | 'ALREADY_DECIDED' | 'CSRF_INVALID' | 'RATE_LIMITED' | 'NOT_FOUND' | 'MODEL_UNAVAILABLE' | 'PUSH_DISABLED';
+  | 'ALREADY_DECIDED' | 'CSRF_INVALID' | 'RATE_LIMITED' | 'NOT_FOUND' | 'MODEL_UNAVAILABLE' | 'PUSH_DISABLED'
+  | 'LIVE_UNAVAILABLE' | 'RECONNECT_REQUIRED' | 'MODE_CHANGED';
 
 /** Thrown anywhere in a route; turned into the documented error format by errorHandler. */
 export class AppError extends Error {

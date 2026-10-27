@@ -27,10 +27,11 @@ export type Check =
   | { feature: 'tool'; tool: string }
   | { feature: 'auditExport'; format: string }
   | { feature: 'pushAlerts' }
+  | { feature: 'liveIntegrations' }
   | { feature: 'modelRole'; role: Role; model: { provider: string; model_id: string; base_url: string | null } };
 
 const LABEL: Record<Check['feature'], string> = {
-  agents: 'more agents', tool: 'this tool', auditExport: 'this audit export', pushAlerts: 'phone alerts', modelRole: 'this model role'
+  agents: 'more agents', tool: 'this tool', auditExport: 'this audit export', pushAlerts: 'phone alerts', liveIntegrations: 'live integrations', modelRole: 'this model role'
 };
 
 interface ConnRow { tool: string; status: string; connected_at: number }
@@ -50,6 +51,7 @@ export function entitlementService(ctx: Ctx) {
       case 'tool': return e.toolCatalog.includes(c.tool) && (e.maxConnectedTools == null || (usage?.tools ?? 0) < e.maxConnectedTools);
       case 'auditExport': return e.auditExport.includes(c.format);
       case 'pushAlerts': return e.pushAlerts.includes('push');
+      case 'liveIntegrations': return e.liveIntegrations === true;
       case 'modelRole': return e.modelRoles.roles.includes(c.role) && (c.role !== 'guard' || e.modelRoles.guardTiers.includes(modelTier(c.model)));
     }
   }

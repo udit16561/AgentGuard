@@ -35,6 +35,7 @@ const qs = params => {
 };
 
 export const api = {
+  session: () => request('GET', '/api/auth/session'),
   me: () => request('GET', '/api/me'),
   signup: async (email, password) => { const r = await request('POST', '/api/auth/signup', { email, password }); await loadCsrf(); return r; },
   login: async (email, password) => { const r = await request('POST', '/api/auth/login', { email, password }); await loadCsrf(); return r; },

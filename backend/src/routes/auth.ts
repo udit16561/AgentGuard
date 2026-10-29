@@ -86,6 +86,9 @@ export function authRoutes(ctx: Ctx) {
     res.json({ ok: true });
   });
 
+  // lets the app decide between the login page and the shell without a 401 in the console; says nothing but yes or no
+  r.get('/session', (req, res) => { res.json({ signedIn: !!req.user }); });
+
   r.get('/csrf', requireUser, (req, res) => { res.json({ token: req.session!.csrf_token }); });
 
   // a fresh password check, needed before approving HIGH/CRITICAL or NEEDS_REVIEW actions

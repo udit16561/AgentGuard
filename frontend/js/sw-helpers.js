@@ -3,7 +3,7 @@
  * Rules: cache static app files only, never API data; a notification tap may only open a Review screen.
  */
 (function (scope) {
-  var VERSION = 'v0.9.0';
+  var VERSION = 'v1.0.0';
   var STATIC_FILES = [
     '', 'index.html', 'manifest.webmanifest', 'css/app.css',
     'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/badge-96.png',

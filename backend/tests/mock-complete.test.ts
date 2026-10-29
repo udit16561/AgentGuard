@@ -192,3 +192,14 @@ describe('the demo seed', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   }, 60_000);
 });
+
+describe('v1 polish', () => {
+  it('POLISH-01 GET /api/auth/session answers 200 signed in or not (no 401 noise on the login page), and reveals nothing else', async () => {
+    const { app } = await createApp({ dbPath: ':memory:', serveFrontend: false });
+    expect((await request(app).get('/api/auth/session').expect(200)).body).toEqual({ signedIn: false });
+    const ctx = await setup();
+    expect((await ctx.user.get('/api/auth/session').expect(200)).body).toEqual({ signedIn: true });
+    await post(ctx, '/api/auth/logout');
+    expect((await ctx.user.get('/api/auth/session').expect(200)).body).toEqual({ signedIn: false });
+  });
+});

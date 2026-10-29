@@ -68,7 +68,7 @@ export function payloadFields(payload) {
   const p = { ...(payload ?? {}) };
   const rows = [];
   if (typeof p.amount === 'number') { rows.push(['Amount', money(p.amount, p.currency), false]); delete p.amount; delete p.currency; }
-  for (const [k, v] of Object.entries(p)) rows.push([fieldLabel(k), fieldValue(v), isLongField(k)]);
+  for (const [k, v] of Object.entries(p)) rows.push([fieldLabel(k), fieldValue(v, k), isLongField(k)]);
   if (!rows.length) return h('p', { class: 'empty' }, 'No details were sent with this action.');
   return h('dl', { class: 'fields' }, rows.map(([k, v, long]) => h('div', {}, h('dt', {}, k), h('dd', {}, long ? h('p', { class: 'preview' }, v) : v))));
 }

@@ -1,8 +1,8 @@
-import { h, icon, clear } from './dom.js';
+import { h, icon, clear, fill } from './dom.js';
 import { api, ApiError, setUnauthenticatedHandler } from './api.js';
 import { state, setCatalog, toolName } from './state.js';
 import { applyTheme, OPEN } from './format.js';
-import { say } from './components.js';
+import { say, errorText } from './components.js';
 import { renderLogin } from './views/login.js';
 import * as dashboard from './views/dashboard.js';
 import * as review from './views/review.js';
@@ -89,7 +89,7 @@ async function startShell() {
 
 function renderNav() {
   const current = (location.hash.replace(/^#\/?/, '').split('/')[0]) || 'dashboard';
-  clear(navEl).append(...NAV.map(([key, label, ic, short]) => h('a', { href: `#/${key}`, 'aria-current': current === key ? 'page' : 'false', id: `nav-${key}` },
+  fill(navEl, ...NAV.map(([key, label, ic, short]) => h('a', { href: `#/${key}`, 'aria-current': current === key ? 'page' : 'false', id: `nav-${key}` },
     icon(ic, 19), h('span', { class: 'lbl' }, label), h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, short),
     key === 'review' && state.pendingCount ? [h('span', { class: 'count', 'aria-hidden': 'true' }, String(state.pendingCount)), h('span', { class: 'sr' }, `, ${state.pendingCount} waiting`)] : null)));
 }
@@ -98,7 +98,7 @@ function renderNav() {
 function renderModeFoot() {
   const live = state.me?.integrations?.live ?? [];
   modeFootEl.classList.toggle('is-live', live.length > 0);
-  clear(modeFootEl).append(h('span', { class: 'dot', 'aria-hidden': 'true' }), live.length
+  fill(modeFootEl, h('span', { class: 'dot', 'aria-hidden': 'true' }), live.length
     ? h('div', {}, h('b', {}, `LIVE: ${live.map(toolName).join(', ')}`), 'Approved actions change your real account. Every other tool is simulated.')
     : h('div', {}, h('b', {}, 'MOCK mode'), 'Tools are simulated. No real payments, posts or messages.'));
 }
@@ -147,11 +147,20 @@ async function route() {
   // the stale screen finishes into a detached container instead of drawing over the new one
   const gen = ++routeGen;
   const host = h('div', { class: 'view-host' });
-  clear(viewEl).append(host);
+  // views append straight into the host: skip null children instead of printing "null"
+  const nativeAppend = host.append.bind(host);
+  host.append = (...children) => nativeAppend(...children.flat(Infinity).filter(c => c != null && c !== false && c !== ''));
+  // something to see while the screen loads, so nothing flashes blank
+  const loading = h('div', { class: 'loading', role: 'status', id: 'loading' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), 'Loading…');
+  fill(viewEl, loading, host);
   viewEl.classList.remove('view'); void viewEl.offsetWidth; viewEl.classList.add('view');   // replay the enter animation
   let done = null;
   try { done = (await view.render(host, param ? decodeURIComponent(param) : undefined)) ?? null; }
-  catch (e) { host.append(h('p', { class: 'err' }, e.message)); }
+  catch (e) {
+    host.replaceChildren(h('section', { class: 'card', id: 'view-error', role: 'alert' }, h('h1', { id: 'title', tabindex: '-1' }, 'This screen could not load'),
+      h('p', {}, errorText(e)), h('p', { class: 'actions' }, h('a', { class: 'btn', href: location.hash || '#/dashboard', id: 'view-retry', onclick: () => setTimeout(route) }, 'Try again'), h('a', { class: 'link', href: '#/dashboard' }, 'Go to the dashboard'))));
+  }
+  loading.remove();
   if (gen !== routeGen) { if (done) done(); return; }
   cleanup = done;
   const title = document.getElementById('title');
@@ -175,5 +184,6 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
   });
 }
 
-// signed out: login; no connection at all: the offline shell
-api.me().then(async me => { state.me = me; await startShell(); }, err => (err instanceof ApiError ? showLogin() : showOffline()));
+// signed out: login; no connection at all: the offline shell (asking for the session first keeps a 401 out of the console)
+api.session().then(async s => { if (!s.signedIn) return showLogin(); state.me = await api.me(); await startShell(); })
+  .catch(err => (err instanceof ApiError ? showLogin() : showOffline()));

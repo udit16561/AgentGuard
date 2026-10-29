@@ -1,4 +1,4 @@
-import { h, icon, clear } from '../dom.js';
+import { h, icon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { state, toolName } from '../state.js';
 import { openDialog, say, errorText } from '../components.js';
@@ -33,11 +33,11 @@ export async function render(view) {
 
   async function load() {
     const [{ plans }, me] = await Promise.all([api.plans(), api.entitlements()]);
-    clear(pausedBox).append(...(me.paused.agents.length || me.paused.tools.length ? [h('div', { class: 'warn', role: 'note' },
+    fill(pausedBox, ...(me.paused.agents.length || me.paused.tools.length ? [h('div', { class: 'warn', role: 'note' },
       h('b', {}, 'Paused by your plan: '),
       [...me.paused.agents.map(a => `agent ${a.name}`), ...me.paused.tools.map(toolName)].join(', '),
       '. Nothing was deleted; upgrade to turn them back on.')] : []));
-    clear(box).append(...plans.map(p => {
+    fill(box, ...plans.map(p => {
       const current = p.id === me.plan;
       const btn = current ? h('span', { class: 'badge st-COMPLETED', id: `plan-current-${p.id}` }, 'Current plan')
         : h('button', { type: 'button', class: `btn ${p.priceInr > plans.find(x => x.id === me.plan).priceInr ? 'primary' : 'ghost'}`, id: `plan-pick-${p.id}` }, `Switch to ${p.name}`);

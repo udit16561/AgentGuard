@@ -1,7 +1,7 @@
-import { h, icon, toolIcon, clear } from '../dom.js';
+import { h, icon, toolIcon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { toolName, opLabel } from '../state.js';
-import { OPEN, INTENT, fmtTime, countdown } from '../format.js';
+import { OPEN, INTENT, fmtTime, countdown, blockText } from '../format.js';
 import { statusChip, riskBadge, flagChip, modeBadge, actionTitle, payloadFields, pipeline, openDialog, say, errorText } from '../components.js';
 import { preview, changesCard } from '../previews.js';
 
@@ -21,7 +21,7 @@ export async function render(view, selectedId) {
   view.append(
     h('div', { class: 'head' }, h('div', {}, h('h1', { id: 'title', tabindex: '-1' }, 'Review'), h('p', {}, 'Check the exact details, then approve or reject. Nothing is approved by default.'))),
     // opened for one action (a notification or a link): on a phone that action gets the whole screen
-    selectedId ? h('a', { class: 'link review-back', href: '#/review', id: 'review-back' }, '← All requests') : null,
+    ...(selectedId ? [h('a', { class: 'link review-back', href: '#/review', id: 'review-back' }, '← All requests')] : []),
     h('div', { class: `review${selectedId ? ' one' : ''}` },
       h('section', { class: 'card queue', 'aria-label': 'Proposed actions' }, h('div', { class: 'seg', role: 'group', 'aria-label': 'Which actions to list' }, segOpen, segAll), queue),
       detail));
@@ -37,7 +37,7 @@ export async function render(view, selectedId) {
     const sig = JSON.stringify([filter, selectedId, list.map(a => [a.id, a.status])]);
     if (!force && sig === listSig) return;
     listSig = sig;
-    clear(queue).append(...(list.length ? list.map(a => h('li', {}, h('a', { class: 'qitem', href: `#/review/${encodeURIComponent(a.id)}`, 'aria-current': String(a.id === selectedId), id: `q-${a.id}` },
+    fill(queue, ...(list.length ? list.map(a => h('li', {}, h('a', { class: 'qitem', href: `#/review/${encodeURIComponent(a.id)}`, 'aria-current': String(a.id === selectedId), id: `q-${a.id}` },
       h('span', { class: 'ic' }, toolIcon(a.tool)),
       h('span', { class: 'qmain' }, h('span', { class: 'qtitle' }, actionTitle(a)), h('span', { class: 'qmeta' }, `${a.agentName ?? 'Agent'} · ${fmtTime(a.createdAt)}`),
         h('span', { class: 'chips' }, riskBadge(a.riskLevel), statusChip(a.status))))))
@@ -46,9 +46,10 @@ export async function render(view, selectedId) {
 
   async function loadDetail(force = false) {
     if (!selectedId) selectedId = visible()[0]?.id ?? actions[0]?.id;
-    if (!selectedId) { clear(detail).append(h('div', { class: 'card' }, h('h2', { id: 'detail-h' }, 'No actions yet'), h('p', { class: 'muted' }, 'When an agent proposes something, it appears here for your decision.'))); return; }
-    try { current = await api.action(selectedId); }
-    catch { clear(detail).append(h('div', { class: 'card' }, h('h2', { id: 'detail-h' }, 'Action not found'), h('p', { class: 'muted' }, 'It may belong to another account.'))); return; }
+    if (!selectedId) { fill(detail, h('div', { class: 'card' }, h('h2', { id: 'detail-h' }, 'No actions yet'), h('p', { class: 'muted' }, 'When an agent proposes something, it appears here for your decision.'))); return; }
+    // the list holds the latest 200: an id missing from a shorter list does not exist, so skip the request (no 404 in the console)
+    try { if (actions.length < 200 && !actions.some(x => x.id === selectedId)) throw new Error('not found'); current = await api.action(selectedId); }
+    catch { fill(detail, h('div', { class: 'card', id: 'not-found' }, h('h2', { id: 'detail-h' }, 'Action not found'), h('p', { class: 'muted' }, 'This link points to an action that does not exist or belongs to another account.'), h('a', { class: 'link', href: '#/review' }, 'Back to all requests'))); return; }
     const sig = JSON.stringify([current.status, current.execution, current.approval]);
     if (!force && sig === detailSig) return;
     detailSig = sig;
@@ -67,7 +68,11 @@ export async function render(view, selectedId) {
       pipeline(a)
     ];
     if (a.status === 'NEEDS_REVIEW') parts.push(h('div', { class: 'warn', role: 'note' }, h('b', {}, 'AgentGuard is not sure about this one. '), 'Details are missing or the risk check was uncertain, so check everything yourself. Approving needs your password.'));
-    if (a.status === 'BLOCKED') parts.push(h('div', { class: 'err', role: 'note' }, `Blocked: ${a.blockReason ?? 'not allowed'}. It cannot run.`));
+    if (a.status === 'BLOCKED') parts.push(h('div', { class: 'err', role: 'note', id: 'block-note' }, h('b', {}, 'Blocked: '), `${blockText(a.blockReason)}. It cannot run, and nothing was sent.`));
+    if (a.status === 'EXPIRED') parts.push(h('div', { class: 'warn', role: 'note', id: 'expired-note' }, h('b', {}, 'Expired: '), 'nobody decided in time, so it did not run. The agent can propose it again.'));
+    if (a.status === 'REJECTED') parts.push(h('div', { class: 'warn', role: 'note', id: 'rejected-note' }, h('b', {}, 'Rejected: '), 'you said no, so it did not run.'));
+    if (a.status === 'FAILED') parts.push(h('div', { class: 'err', role: 'note', id: 'failed-note' }, h('b', {}, 'Failed: '), 'the provider refused it. Nothing else will be retried automatically.'));
+    if (a.status === 'UNKNOWN') parts.push(h('div', { class: 'warn', role: 'note', id: 'unknown-note' }, h('b', {}, 'Not confirmed: '), 'check the tool itself before asking the agent again.'));
 
     parts.push(liveNote(a), changesCard(a), preferenceCard(a), preview(a));
     parts.push(h('section', { class: 'card', 'aria-labelledby': 'd-details' }, h('h2', { id: 'd-details' }, 'Exact details'), payloadFields(a.payload)));
@@ -95,7 +100,7 @@ export async function render(view, selectedId) {
     }
 
     if (open) parts.push(decisionBar(a));
-    clear(detail).append(...parts.filter(Boolean));   // native append would print null as text
+    fill(detail, ...parts.filter(Boolean));   // native append would print null as text
   }
 
   /** A LIVE action changes the real calendar: say so, and say whether Google will email anyone. */
@@ -171,7 +176,7 @@ export async function render(view, selectedId) {
       confirm.disabled = true; back.disabled = true;
       try {
         if (a.requiresReauth) {
-          try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; confirm.disabled = false; back.disabled = false; pw.select(); return; }
+          try { await api.reauth(pw.value); } catch (e) { error.textContent = e.code === 'RATE_LIMITED' ? errorText(e) : 'That password is wrong.'; error.hidden = false; confirm.disabled = false; back.disabled = false; pw.select(); return; }
           pw.value = '';
         }
         const after = await api.approve(a.id, shownHash);

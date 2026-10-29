@@ -1,4 +1,4 @@
-import { h, icon, toolIcon, clear } from '../dom.js';
+import { h, icon, toolIcon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { state, toolName, canAutoAllow } from '../state.js';
 import { statusChip, openDialog, say, errorText, lockNote } from '../components.js';
@@ -40,7 +40,7 @@ export async function render(view, agentId) {
   let agents = await api.agents();
   let ent = await api.entitlements().catch(() => null);
   const createLock = h('span', { id: 'agent-limit' });
-  const showLimit = () => clear(createLock).append(ent && ent.usage.agents >= ent.entitlements.maxAgents
+  const showLimit = () => fill(createLock, ent && ent.usage.agents >= ent.entitlements.maxAgents
     ? h('span', { class: 'fine' }, `Your plan allows ${ent.entitlements.maxAgents} active agent${ent.entitlements.maxAgents === 1 ? '' : 's'}. `, lockNote(null, 'more agents')) : '');
   showLimit();
   let selected = agents.find(a => a.id === agentId) ?? agents[0];
@@ -67,12 +67,12 @@ export async function render(view, agentId) {
   function showKey(agentName, key) {
     const copy = h('button', { type: 'button', class: 'btn sm ghost' }, 'Copy key');
     copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(key); say('Key copied. Store it somewhere safe.'); } catch { say('Copy failed; select the key and copy it manually.'); } });
-    clear(keyBox).append(h('div', { class: 'keybox', id: 'key-box' }, h('b', {}, `API key for ${agentName}: shown only once`),
+    fill(keyBox, h('div', { class: 'keybox', id: 'key-box' }, h('b', {}, `API key for ${agentName}: shown only once`),
       h('code', { id: 'api-key' }, key), h('p', { class: 'fine' }, 'Give it to the agent. AgentGuard stores only a hash, so it cannot show this key again. If it leaks, rotate it.'), copy));
   }
 
   function renderAgents() {
-    clear(agentBox).append(...(agents.length ? agents.map(a => {
+    fill(agentBox, ...(agents.length ? agents.map(a => {
       const pause = h('button', { type: 'button', class: 'btn sm ghost', 'aria-label': `${a.status === 'PAUSED' ? 'Resume' : 'Pause'} ${a.name}` }, icon(a.status === 'PAUSED' ? 'play' : 'pause', 16), a.status === 'PAUSED' ? 'Resume' : 'Pause');
       const rotate = h('button', { type: 'button', class: 'btn sm ghost', 'aria-label': `Rotate key for ${a.name}` }, icon('key', 16), 'Rotate key');
       const pick = h('a', { href: `#/agents/${encodeURIComponent(a.id)}`, class: 'link', 'aria-current': String(a.id === selected?.id) }, 'Permissions');
@@ -85,19 +85,19 @@ export async function render(view, agentId) {
         ok.addEventListener('click', async () => { try { const r = await api.rotateKey(a.id); dlg.close(); showKey(a.name, r.apiKey); } catch (e) { dlg.close(); say(errorText(e)); } });
       });
       return h('div', { class: 'row' }, h('span', { class: 'ic' }, icon('bot')),
-        h('span', { class: 'grow' }, h('span', { class: 't' }, a.name), h('span', { class: 'm' }, a.model ?? 'No model set')),
+        h('span', { class: 'grow' }, h('span', { class: 't' }, a.name), h('span', { class: 'm' }, a.kind === 'assistant' ? 'Built-in Assistant (model under Settings → Models)' : a.model ?? 'No model set')),
         statusChip(state.me?.killSwitch ? 'PAUSED' : a.status), a.pausedByPlan ? h('span', { class: 'badge st-PAUSED', id: `agent-plan-${a.id}` }, 'Paused by plan') : null,
         h('span', { class: 'actions' }, pick, a.pausedByPlan ? lockNote(null) : pause, rotate));
     }) : [h('p', { class: 'empty' }, 'No agents yet. Create one below.')]));
   }
 
   async function renderPermissions() {
-    if (!selected) { clear(permBox).append(h('p', { class: 'empty' }, 'Create an agent to set its permissions.')); return; }
+    if (!selected) { fill(permBox, h('p', { class: 'empty' }, 'Create an agent to set its permissions.')); return; }
     const [perms, tools] = await Promise.all([api.permissions(selected.id), api.tools()]);
     const connected = new Set(tools.filter(t => t.connected).map(t => t.tool));
     const byTool = new Map();
     for (const p of perms) { if (!byTool.has(p.tool)) byTool.set(p.tool, []); byTool.get(p.tool).push(p); }
-    clear(permBox).append(h('p', { class: 'fine' }, 'Showing permissions for ', h('b', {}, selected.name), '.'),
+    fill(permBox, h('p', { class: 'fine' }, 'Showing permissions for ', h('b', {}, selected.name), '.'),
       ...[...byTool].map(([tool, ops]) => toolSection(tool, ops, connected.has(tool))));
   }
 

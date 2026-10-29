@@ -27,6 +27,8 @@ export function append(el, children) {
 }
 
 export const clear = el => { el.replaceChildren(); return el; };
+/** Replaces an element's children; null, false and '' are skipped (native append would print "null"). */
+export const fill = (el, ...children) => append(clear(el), children);
 
 // icons as shape lists, built with createElementNS (no markup strings)
 const SHAPES = {

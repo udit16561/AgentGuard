@@ -1,5 +1,5 @@
 import { h, icon, toolIcon } from './dom.js';
-import { money, fieldLabel, fieldValue } from './format.js';
+import { money, fieldLabel, fieldValue, fmtWhen } from './format.js';
 import { toolName } from './state.js';
 
 /**
@@ -10,10 +10,7 @@ const list = v => (Array.isArray(v) ? v : v == null ? [] : [v]).filter(x => type
 const str = v => (typeof v === 'string' ? v : '');
 const initials = s => s.replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('') || '?';
 const avatar = s => h('span', { class: 'avatar', 'aria-hidden': 'true' }, initials(s));
-const when = iso => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? String(iso ?? '') : new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata', timeZoneName: 'short' }).format(d);
-};
+const when = iso => (Number.isNaN(Date.parse(iso)) ? String(iso ?? '') : fmtWhen(iso));
 const frame = (kind, title, ...children) => h('section', { class: 'card', id: 'preview', 'aria-labelledby': 'preview-h' },
   h('div', { class: 'card-h' }, h('h2', { id: 'preview-h' }, title), h('span', { class: 'mock' }, 'Preview')), h('div', { class: `pv ${kind}` }, ...children));
 

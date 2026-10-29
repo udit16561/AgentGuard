@@ -1,18 +1,22 @@
+import { state } from './state.js';
+
 /** Labels and formatting. Display preferences live in localStorage; nothing secret is ever stored there. */
 const PREF_KEY = 'agentguard.prefs.v1';
 export const prefs = (() => {
-  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return { theme: ['light', 'dark'].includes(p.theme) ? p.theme : 'system', tz: p.tz === 'local' ? 'local' : 'Asia/Kolkata' }; }
-  catch { return { theme: 'system', tz: 'Asia/Kolkata' }; }
+  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); return { theme: ['light', 'dark'].includes(p.theme) ? p.theme : 'system', tz: p.tz === 'local' ? 'local' : 'account' }; }
+  catch { return { theme: 'system', tz: 'account' }; }
 })();
 export function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* preferences are optional */ } }
-export function clearPrefs() { try { localStorage.removeItem(PREF_KEY); } catch { /* nothing stored */ } prefs.theme = 'system'; prefs.tz = 'Asia/Kolkata'; }
+export function clearPrefs() { try { localStorage.removeItem(PREF_KEY); } catch { /* nothing stored */ } prefs.theme = 'system'; prefs.tz = 'account'; }
 export function applyTheme() { if (prefs.theme === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = prefs.theme; }
 
-const zone = () => (prefs.tz === 'local' ? {} : { timeZone: 'Asia/Kolkata' });
-export const fmtTime = (iso, withDate = true) => {
-  const d = new Date(iso); if (Number.isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', second: withDate ? undefined : '2-digit', hour12: false, timeZoneName: 'short', ...(withDate ? { day: 'numeric', month: 'short' } : {}), ...zone() }).format(d);
-};
+/** The account's time zone (default), or this device's when chosen under Settings. */
+const zone = () => (prefs.tz === 'local' ? {} : { timeZone: state.me?.timezone || 'Asia/Kolkata' });
+const fmt = (opts, iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '—' : new Intl.DateTimeFormat('en-IN', { hour12: false, timeZoneName: 'short', ...opts, ...zone() }).format(d); };
+/** Every timestamp: "29 Oct, 18:31 IST"; withDate false gives "18:31:29 IST". */
+export const fmtTime = (iso, withDate = true) => fmt(withDate ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit', second: '2-digit' }, iso);
+/** When something is scheduled (meetings, posts): "Thu, 30 Oct, 10:00 IST". */
+export const fmtWhen = iso => fmt({ weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }, iso);
 export const fmtDay = iso => new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', ...zone() }).format(new Date(iso));
 export function money(amount, currency) {
   if (typeof amount !== 'number') return String(amount ?? '—');
@@ -36,6 +40,27 @@ export const STATUS = {
   ACTIVE: { label: 'Active', icon: 'play' },
   PAUSED: { label: 'Paused', icon: 'pause' }
 };
+export const BLOCK_REASON = {
+  PERMISSION_NOT_GRANTED: 'this agent does not have that permission', UNKNOWN_OPERATION: 'AgentGuard does not know this operation',
+  TOOL_NOT_CONNECTED: 'the tool is not connected', TOOL_DISCONNECTED: 'the tool was disconnected', TOOL_PAUSED_BY_PLAN: 'the tool is paused by your plan',
+  LIMIT_EXCEEDED: 'it is over your daily cap', WEEKLY_LIMIT_EXCEEDED: 'it is over your weekly cap', MONTHLY_LIMIT_EXCEEDED: 'it is over your monthly cap',
+  PAYEE_LIMIT_EXCEEDED: 'it is over this payee’s monthly cap', PAYEE_NOT_ALLOWED: 'this payee is not on your allowed list', NEW_PAYEE_BLOCKED: 'new payees are not allowed',
+  METHOD_NOT_ALLOWED: 'this payment method is not allowed', CURRENCY_NOT_ALLOWED: 'this currency is not allowed', CATEGORY_BLOCKED: 'it is in a category you blocked',
+  RECIPIENT_NOT_ALLOWED: 'a recipient is not on your allowed list', BULK_LIMIT_EXCEEDED: 'it goes to more people than you allow', OUTSIDE_ALLOWED_HOURS: 'it is outside your allowed hours',
+  PREFERENCE_VIOLATION: 'it breaks a hard rule in your preferences', PREFERENCE_CHECK_FAILED: 'your preferences could not be checked',
+  KILL_SWITCH: 'the kill switch is on', AGENT_PAUSED: 'the agent is paused', REPLACED: 'the agent sent a newer version', MODE_CHANGED: 'the tool switched between MOCK and LIVE',
+  LIVE_UNAVAILABLE: 'live mode is not configured on this server', LIVE_NOT_IN_PLAN: 'your plan runs tools in MOCK only', RECONNECT_REQUIRED: 'Google needs you to sign in again',
+  LIVE_PAYLOAD_INVALID: 'Google could not take these details', PERMISSION_DENIED: 'a permission or limit no longer allows it', PAYLOAD_CHANGED: 'the details changed after approval',
+  APPROVAL_EXPIRED: 'the approval expired', ENTITLEMENT_REQUIRED: 'your plan does not include this tool'
+};
+export const blockText = code => BLOCK_REASON[code] ?? (code ? code.replace(/_/g, ' ').toLowerCase() : 'it is not allowed');
+/** "LIMIT_EXCEEDED: This would take today's total…" from the API, in plain words: "It is over your daily cap. This would take today's total…" */
+export function humanReason(msg) {
+  const m = /^([A-Z][A-Z_]+): (.*)$/s.exec(String(msg ?? ''));
+  if (!m) return String(msg ?? '');
+  const why = blockText(m[1]);
+  return `${why[0].toUpperCase()}${why.slice(1)}. ${m[2]}`;
+}
 export const RISK = { LOW: 'Low risk', MEDIUM: 'Medium risk', HIGH: 'High risk', CRITICAL: 'Critical risk' };
 export const OPEN = ['PENDING_REVIEW', 'NEEDS_REVIEW'];
 
@@ -73,4 +98,7 @@ const FIELD_LABEL = {
 const LONG = new Set(['body', 'text', 'caption', 'note']);
 export const fieldLabel = k => FIELD_LABEL[k] ?? k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
 export const isLongField = k => LONG.has(k);
-export const fieldValue = v => Array.isArray(v) ? (v.length ? v.join(', ') : 'None') : v && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '—');
+const WHEN_FIELDS = new Set(['start', 'end', 'sendAt', 'scheduledAt', 'from', 'to_time']);
+const isIsoTime = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) && !Number.isNaN(Date.parse(v));
+/** A payload value as text; scheduled times are shown in the same date format as the rest of the app. */
+export const fieldValue = (v, k) => (WHEN_FIELDS.has(k) && isIsoTime(v)) ? fmtWhen(v) : Array.isArray(v) ? (v.length ? v.join(', ') : 'None') : v && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '—');

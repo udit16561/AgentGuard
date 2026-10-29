@@ -1,4 +1,4 @@
-import { h, toolIcon, clear } from '../dom.js';
+import { h, toolIcon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { modeBadge, openDialog, say, errorText, lockNote } from '../components.js';
 import { startLive, stopLive, liveReturn } from '../live.js';
@@ -29,7 +29,7 @@ export async function render(view) {
   async function load(focusId) {
     const tools = await api.tools();
     const prefs = await Promise.all(tools.map(t => api.preferences(t.tool).catch(() => ({ text: '', rules: [] }))));
-    clear(grid).append(...tools.map((t, i) => {
+    fill(grid, ...tools.map((t, i) => {
       const writes = t.operations.filter(o => o.write).length;
       // not in your plan (or over its tool limit): labelled, not hidden; a plan-paused tool keeps its settings
       const btn = !t.connected && t.locked ? lockNote(t.locked.upgradeTo)

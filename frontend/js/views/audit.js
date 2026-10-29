@@ -1,4 +1,4 @@
-import { h, icon, clear } from '../dom.js';
+import { h, icon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { toolName } from '../state.js';
 import { EVENT, fmtTime, fmtDay } from '../format.js';
@@ -64,15 +64,15 @@ export async function render(view) {
   async function load() {
     const page = await api.auditPage({ eventType: type.value || undefined, tool: tool.value || undefined, limit: 1000 });
     const events = page.events;
-    clear(retention).append(`Showing the last ${page.retentionDays} days on your plan.`, page.hiddenOlder ? [` ${page.hiddenOlder} older events are kept and still covered by the chain check. `, lockNote(null, 'a longer history')] : '');
-    if (!events.length) { clear(list).append(h('p', { class: 'empty' }, 'No events match these filters.')); return; }
+    fill(retention, `Showing the last ${page.retentionDays} days on your plan.`, page.hiddenOlder ? [` ${page.hiddenOlder} older events are kept and still covered by the chain check. `, lockNote(null, 'a longer history')] : '');
+    if (!events.length) { fill(list, h('p', { class: 'empty' }, 'No events match these filters.')); return; }
     const groups = [];
     for (const e of events) {
       const day = fmtDay(e.createdAt);
       if (!groups.length || groups[groups.length - 1].day !== day) groups.push({ day, items: [] });
       groups[groups.length - 1].items.push(e);
     }
-    clear(list).append(...groups.map(g => h('section', { 'aria-label': g.day },
+    fill(list, ...groups.map(g => h('section', { 'aria-label': g.day },
       h('h2', { class: 'sub-h' }, g.day),
       h('ol', { class: 'tl' }, g.items.map(e => h('li', { 'data-event': e.eventType },
         h('span', {}, h('time', { datetime: e.createdAt }, fmtTime(e.createdAt, false)), ' ', h('span', { class: 'seq' }, `#${e.seq}`)),

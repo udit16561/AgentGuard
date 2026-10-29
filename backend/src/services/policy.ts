@@ -8,6 +8,8 @@ import { outsideWindow, zonedParts } from './time';
 import { evaluatePreferences } from './preferences/store';
 import { categoryHit } from './categories';
 import type { PreferenceReport } from './preferences/check';
+import { liveGate } from '../integrations/live';
+import type { LiveConn } from '../integrations/google/oauth';
 
 /**
  * Gate 1, permission (docs/SECURITY_AND_APPROVALS.md §1): kill switch off, agent active, tool connected,
@@ -46,10 +48,19 @@ export function checkPolicy(ctx: Ctx, a: { userId: string; agentId: string; tool
   if (!agent || agent.status !== 'ACTIVE') return deny(423, 'AGENT_PAUSED', 'AGENT_PAUSED', 'This agent is paused');
   if (!operationDef(a.tool, a.operation)) return deny(403, 'PERMISSION_DENIED', 'UNKNOWN_OPERATION', `${a.tool}.${a.operation} is not a known operation`);
 
-  const conn = db.prepare("SELECT status FROM tool_connections WHERE user_id = ? AND tool = ?").get(a.userId, a.tool) as { status: string } | undefined;
+  const conn = db.prepare('SELECT status, mode, live_state, live_since, encrypted_token FROM tool_connections WHERE user_id = ? AND tool = ?').get(a.userId, a.tool) as LiveConn | undefined;
   // paused by a downgrade: kept, and unlocked again by an upgrade
   if (conn?.status === 'PAUSED_PLAN') return deny(402, 'ENTITLEMENT_REQUIRED', 'TOOL_PAUSED_BY_PLAN', `Upgrade to unlock ${a.tool}: it was paused when your plan changed`);
   if (conn?.status !== 'CONNECTED') return deny(403, 'PERMISSION_DENIED', 'TOOL_NOT_CONNECTED', `${a.tool} is not connected`);
+  // an approval covers the mode the action was proposed in: never MOCK-approved then run live, or the reverse
+  if (a.excludeActionId) {
+    const proposedIn = (db.prepare('SELECT adapter_mode FROM actions WHERE id = ?').get(a.excludeActionId) as { adapter_mode: string } | undefined)?.adapter_mode;
+    if (proposedIn && proposedIn !== conn.mode) return deny(409, 'MODE_CHANGED', 'MODE_CHANGED', `${a.tool} was switched to ${conn.mode} after this was proposed in ${proposedIn}`);
+  }
+  if (conn.mode === 'LIVE') {
+    const live = liveGate(ctx, a.userId, a.tool, a.operation, a.payload, conn);
+    if (live) return deny(live.status, live.code, live.reason, live.message);
+  }
 
   const perm = getPermission(db, a.agentId, a.tool, a.operation);
   if (!perm.allowed) return deny(403, 'PERMISSION_DENIED', 'PERMISSION_NOT_GRANTED', `This agent may not use ${a.tool}.${a.operation}`);

@@ -53,7 +53,11 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 
 ### Tools and permissions (user)
 - `GET /api/tools` (catalog + connection state)
-- `POST /api/tools/:tool/connect` (mock OAuth) · `DELETE /api/tools/:tool`
+- `POST /api/tools/:tool/connect` (mock OAuth) · `DELETE /api/tools/:tool` (a live connection is revoked at Google too)
+- `GET /api/tools` items also carry `mode` (`MOCK`/`LIVE`) and `live: { available, reconnect, reason, locked? }`
+- `POST /api/tools/calendar/live` (CSRF + re-auth; `INTEGRATION_MODE=live`, Google client, plan) → `{ url }` (Google consent) · `POST /api/tools/calendar/mock` (revokes, back to MOCK)
+- `GET /api/oauth/google/callback?code&state` → 303 to `/#/tools?live=calendar|failed|denied`
+- `GET /api/me` also returns `integrations: { live: [tool], reconnect: [tool] }`; actions carry `adapterMode`
 - `GET/PUT /api/agents/:id/permissions`
 - `GET /api/tools/:tool/preferences` → `{ text, rules[] (with label), updatedAt }`
 - `POST /api/tools/:tool/preferences/parse` body `{ text }` → `{ rules[], ignored[], unrecognized[], parser, fallbackReason? }`. Saves nothing.
@@ -104,6 +108,8 @@ Agents talk to the backend with a **per-agent API key** (scoped, revocable). Age
 
 ## 5. Error format
 `{ "error": { "code": "PERMISSION_DENIED", "message": "...", "actionId": "..." } }`
-Codes: `UNAUTHENTICATED, PERMISSION_DENIED, ENTITLEMENT_REQUIRED, APPROVAL_REQUIRED, APPROVAL_EXPIRED, PAYLOAD_CHANGED, REAUTH_REQUIRED, AGENT_PAUSED, VALIDATION_ERROR, PROVIDER_ERROR, ALREADY_DECIDED, CSRF_INVALID, RATE_LIMITED, NOT_FOUND`.
+Codes: `UNAUTHENTICATED, PERMISSION_DENIED, ENTITLEMENT_REQUIRED, APPROVAL_REQUIRED, APPROVAL_EXPIRED, PAYLOAD_CHANGED, REAUTH_REQUIRED, AGENT_PAUSED, VALIDATION_ERROR, PROVIDER_ERROR, ALREADY_DECIDED, CSRF_INVALID, RATE_LIMITED, NOT_FOUND, MODEL_UNAVAILABLE, PUSH_DISABLED, LIVE_UNAVAILABLE, RECONNECT_REQUIRED, MODE_CHANGED`.
+
+`LIVE_UNAVAILABLE` (409): live mode is off on this server or Google is not configured. `RECONNECT_REQUIRED` (409): Google needs a new sign-in. `MODE_CHANGED` (409): the tool's mode changed after the action was proposed.
 
 `ALREADY_DECIDED` (409) comes from DECISIONS F. `CSRF_INVALID` (403), `RATE_LIMITED` (429) and `NOT_FOUND` (404) name responses the tests already expect.

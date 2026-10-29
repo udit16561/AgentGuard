@@ -250,3 +250,30 @@ Push tests use a fake push service; the LAN tests make certificates in a temp fo
 | UI-31 | E | Plans screen | Three plans, current marked, downgrade preview, Paused by plan and Upgrade to unlock in Tools, upgrade restores |
 | UI-32 | E | Audit export | CSV downloads on Plus; JSON and integrity locked |
 | UI-33 | E | Starter | Locks labelled for agents, tools, the Assistant role and export; verify and the kill switch still work |
+
+## 5g. Added in v0.8.0 (live Google Calendar; Google's HTTP mocked)
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| LIVE-01 | I | Switch Calendar to LIVE | Needs CSRF, re-auth, `INTEGRATION_MODE=live` (409), the Google client (409) and a plan with live integrations (402); Gmail has no live mode (404) |
+| LIVE-02 | I | Consent URL | Google directly; fixed localhost:4443 redirect; `calendar.events` only; offline; PKCE S256 verified at exchange; random state; no secret in the URL |
+| LIVE-03 | I | Callback | Forged, missing, reused or expired state, another browser, Google error, narrower scope: refused, Calendar stays MOCK, audited |
+| LIVE-04 | I | Tokens | Encrypted at rest; absent from tools, me, action, audit, oauth_states and logs |
+| LIVE-05 | I | Create | Nothing before approval; one POST with Bearer and `sendUpdates=none`; event ID derived from the action is the provider reference |
+| LIVE-06 | I | Invitations | Only with `sendInvites: true` in the approved payload; adding it is a new hash |
+| LIVE-07 | I | View, update, cancel | Matching endpoints; changed time or attendees need a new approval |
+| LIVE-08 | I | Re-check before the call | Kill switch, revoked permission or tampered payload during the token refresh: BLOCKED, no Google call |
+| LIVE-09 | I | No confirmation | No event ID or a timeout: UNKNOWN; writes not retried |
+| LIVE-10 | I | Google refusal | FAILED with a fixed message; Google's text not passed on |
+| LIVE-11 | I | Live payload check | Unsupported op, missing end, bad email, end before start: BLOCKED at proposal, never sent |
+| LIVE-12 | I | Refresh and revoke | Refresh stores a new encrypted token; `invalid_grant` fails with nothing sent, shows Reconnect, blocks proposals (409) until reconnected |
+| LIVE-13 | I | Testing mode | 7-day-old refresh token shows Reconnect; off with `GOOGLE_OAUTH_TESTING=false` |
+| LIVE-14 | I | No refresh token | Refused; stays MOCK |
+| LIVE-15 | I | Mode binding | Mode switch blocks open actions both ways; back to MOCK revokes at Google |
+| LIVE-16 | I | Live conditions lost | Starter plan: 402; restart with `INTEGRATION_MODE=mock`: 409; never run as MOCK; tokens kept |
+| LIVE-17 | I | Scope | Other tools stay MOCK; a test build without a mock cannot reach Google |
+| LIVE-18 | I | Disconnect | Revokes at Google, removes tokens, reconnect is MOCK |
+| LIVE-19 | U | `live:check:calendar` | One event, no attendees, `sendUpdates=none`, then cancelled |
+| UI-34 | E | Tools | Confirm dialog plus password; red LIVE badge; back to MOCK |
+| UI-35 | E | Review | Red LIVE badge and whether Google will email anyone; MOCK actions unchanged |
+| UI-36 | E | Reconnect | Refused refresh: FAILED, banner on every screen, reconnect clears it |

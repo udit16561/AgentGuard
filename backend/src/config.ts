@@ -20,6 +20,12 @@ export interface Config {
   vapidPublicKey: string | null;
   vapidPrivateKey: string | null;
   vapidSubject: string;
+  /** Google OAuth client for the live Calendar adapter (v0.8.0); without both, live mode cannot start */
+  googleClientId: string | null;
+  googleClientSecret: string | null;
+  googleRedirectUri: string;
+  /** an unpublished ("Testing") Google app: refresh tokens expire after 7 days, so ask to reconnect before then */
+  googleOAuthTesting: boolean;
 }
 
 const num = (v: string | undefined, fallback: number) => {
@@ -43,7 +49,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     approvalTtlMinutes: num(process.env.APPROVAL_TTL_MINUTES, 10),
     reauthWindowMinutes: num(process.env.REAUTH_WINDOW_MINUTES, 5),
     sessionTtlHours: 12,
-    // live adapters are not built yet, so anything but an explicit "live" stays mock
+    // anything but an explicit "live" stays mock; even then only a tool switched to LIVE on the Tools screen is live
     integrationMode: process.env.INTEGRATION_MODE === 'live' ? 'live' : 'mock',
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
     tokenEncryptionKey: encryptionKey(nodeEnv),
@@ -53,6 +59,10 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null,
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || null,
     vapidSubject: process.env.VAPID_SUBJECT || 'mailto:owner@agentguard.dev',
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
+    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || 'https://localhost:4443/api/oauth/google/callback',
+    googleOAuthTesting: process.env.GOOGLE_OAUTH_TESTING !== 'false',
     ...overrides
   };
 }

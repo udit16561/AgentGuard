@@ -8,6 +8,7 @@ import { requireCsrf, requireUser, SESSION_COOKIE } from '../middleware/auth';
 import { newId, sha256 } from '../services/canonical';
 import { dummyHash, hashPassword, verifyPassword } from '../services/password';
 import { DEFAULT_PLAN, PLANS } from '../services/plans';
+import { liveSummary } from '../integrations/live';
 
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
@@ -103,11 +104,12 @@ export function authRoutes(ctx: Ctx) {
   return r;
 }
 
-export function meRoutes(_ctx: Ctx) {
+export function meRoutes(ctx: Ctx) {
   const r = Router();
   r.get('/', requireUser, (req, res) => {
     const u = req.user!;
-    res.json({ id: u.id, email: u.email, plan: u.plan_id, timezone: u.timezone, killSwitch: !!u.kill_switch });
+    // integrations: which tools are live, and which need "Reconnect Google" (never a token)
+    res.json({ id: u.id, email: u.email, plan: u.plan_id, timezone: u.timezone, killSwitch: !!u.kill_switch, integrations: liveSummary(ctx, u.id) });
   });
   return r;
 }

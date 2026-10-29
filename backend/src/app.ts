@@ -35,6 +35,9 @@ import { pushRoutes } from './routes/push';
 import { streamRoutes } from './routes/stream';
 import { entitlementService } from './services/entitlements';
 import { planRoutes, mePlanRoutes } from './routes/plans';
+import { liveRoutes, oauthRoutes } from './routes/oauth';
+import { noNetwork, type GoogleFetch } from './integrations/google/oauth';
+import { fakeGoogle } from './integrations/google/fake';
 
 export interface AppOptions {
   dbPath?: string;
@@ -53,6 +56,8 @@ export interface AppOptions {
   resolveHost?: Resolve;
   /** Test hook: replaces the Web Push sender, so no test reaches a push service. */
   pushSender?: PushSender;
+  /** Test hook: Google's HTTP (OAuth and Calendar). Tests pass a mock; no test reaches Google. */
+  googleFetch?: GoogleFetch;
   /** Guard timeout in ms (default 3000). */
   modelTimeoutMs?: number;
   /** Serve ../frontend as static files (default true). */
@@ -108,6 +113,9 @@ export async function createApp(options: AppOptions = {}) {
     db, clock, config, audit, preferenceModel, preferenceModelTimeoutMs: options.preferenceModelTimeoutMs,
     modelFactory, modelTimeoutMs: options.modelTimeoutMs
   } as Ctx;
+  // the pretend Google exists for the browser tests only: NODE_ENV=test and GOOGLE_OAUTH_MODE=fake, never otherwise
+  const fakeConsent = !options.googleFetch && config.nodeEnv === 'test' && process.env.GOOGLE_OAUTH_MODE === 'fake';
+  ctx.google = { fetch: options.googleFetch ?? (fakeConsent ? fakeGoogle() : config.nodeEnv === 'test' ? noNetwork : (url, init) => fetch(url, init)), fakeConsent };
   ctx.entitlements = entitlementService(ctx);
   ctx.pushSender = options.pushSender ?? webPushSender(ctx);
   onPush = pushOnAlert(ctx);
@@ -126,6 +134,8 @@ export async function createApp(options: AppOptions = {}) {
   app.use('/api/agents/:id/permissions', permissionRoutes(ctx));
   app.use('/api/agents', agentRoutes(ctx));
   app.use('/api/tools/:tool/preferences', preferenceRoutes(ctx));
+  app.use('/api/tools/:tool', liveRoutes(ctx));
+  app.use('/api/oauth', oauthRoutes(ctx));
   app.use('/api/tools', toolRoutes(ctx));
   app.use('/api/actions', decisionRoutes(ctx, { adapters: options.adapters }));
   app.use('/api/actions', actionRoutes(ctx, { classifier: options.classifier, adapters: options.adapters }));

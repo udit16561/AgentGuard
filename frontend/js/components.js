@@ -126,7 +126,7 @@ export async function withPassword(title, fn) {
     back.addEventListener('click', () => { dlg.close(); reject(Object.assign(new Error('Cancelled'), { code: 'CANCELLED' })); });
     const go = async () => {
       ok.disabled = true;
-      try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
+      try { await api.reauth(pw.value); } catch (e) { error.textContent = e.code === 'RATE_LIMITED' ? errorText(e) : 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
       dlg.close();
       try { resolve(await fn()); } catch (e) { reject(e); }
     };

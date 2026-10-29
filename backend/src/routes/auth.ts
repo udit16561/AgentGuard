@@ -28,7 +28,7 @@ export function authRoutes(ctx: Ctx) {
 
   // per-IP brake on the password endpoints, on top of the per-account lockout (AUTH-02); csrf and logout are not throttled
   const passwordLimiter = rateLimit({
-    windowMs: 15 * 60_000, limit: 100, standardHeaders: 'draft-8', legacyHeaders: false,
+    windowMs: 15 * 60_000, limit: ctx.config.passwordRateLimit, standardHeaders: 'draft-8', legacyHeaders: false,
     handler: (_req, res) => { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } }); }
   });
 

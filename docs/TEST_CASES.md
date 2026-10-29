@@ -291,3 +291,12 @@ Push tests use a fake push service; the LAN tests make certificates in a temp fo
 | MOCK-07 | I | Demo sign-in | The seeded user signs in and the Assistant's proposal waits in Review |
 | UI-37 | E2E | Full journey on MOCK | Sign up → agent (key once) → 9 tools (upgrade to Pro for the last 3) → preference → permission → proposal alert → review with risk → approve with password → Completed → audit verified → kill switch → plans |
 | UI-38 | E2E | Offline Assistant in one click | "Use the offline assistant (no key)" → chat → proposal waits in Review |
+
+## 5i. Added in v1.0.0 (polish)
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| POLISH-01 | I | `GET /api/auth/session` | 200 `{ signedIn }` signed in or out; nothing else revealed; the login page makes no 401 request |
+| UI-39 | E2E | New account, every screen | No console errors, no "null"/"undefined" text, loading indicator gone, friendly empty messages (review, agents, models) |
+| UI-40 | E2E | Error states and dates | Blocked action explained in plain words (no raw code); unknown action link says "not found"; meeting times shown as "Mon, 2 Nov, 10:00 IST" |
+| POLISH-02 | U | Password rate limit | 100 per IP per 15 minutes by default, `PASSWORD_RATE_LIMIT` to change it (the browser tests raise it); a rate-limited password check says "Too many attempts", not "wrong password" |

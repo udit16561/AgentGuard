@@ -9,6 +9,8 @@ export interface Config {
   approvalTtlMinutes: number;
   reauthWindowMinutes: number;
   sessionTtlHours: number;
+  /** sign-in, sign-up and password checks per IP per 15 minutes (the browser tests raise it; accounts still lock after 5 wrong passwords) */
+  passwordRateLimit: number;
   integrationMode: 'mock' | 'live';
   corsOrigin: string;
   tokenEncryptionKey: Buffer;
@@ -49,6 +51,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     approvalTtlMinutes: num(process.env.APPROVAL_TTL_MINUTES, 10),
     reauthWindowMinutes: num(process.env.REAUTH_WINDOW_MINUTES, 5),
     sessionTtlHours: 12,
+    passwordRateLimit: num(process.env.PASSWORD_RATE_LIMIT, 100),
     // anything but an explicit "live" stays mock; even then only a tool switched to LIVE on the Tools screen is live
     integrationMode: process.env.INTEGRATION_MODE === 'live' ? 'live' : 'mock',
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',

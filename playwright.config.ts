@@ -18,7 +18,7 @@ export default defineConfig({
     command: 'npx tsx src/server.ts',
     cwd: 'backend',
     url: `http://localhost:${PORT}/api/health`,
-    env: { PORT: String(PORT), DATABASE_URL: 'file::memory:', NODE_ENV: 'test', INTEGRATION_MODE: 'live', MODEL_PROVIDER_MODE: 'fake',
+    env: { PORT: String(PORT), DATABASE_URL: 'file::memory:', NODE_ENV: 'test', PASSWORD_RATE_LIMIT: '2000', INTEGRATION_MODE: 'live', MODEL_PROVIDER_MODE: 'fake',
       // a pretend Google (test builds only); only Calendar has a live mode, every other tool stays MOCK
       GOOGLE_OAUTH_MODE: 'fake', GOOGLE_CLIENT_ID: 'e2e-client', GOOGLE_CLIENT_SECRET: 'e2e-secret' },
     reuseExistingServer: false,

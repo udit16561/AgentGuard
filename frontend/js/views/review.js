@@ -176,7 +176,7 @@ export async function render(view, selectedId) {
       confirm.disabled = true; back.disabled = true;
       try {
         if (a.requiresReauth) {
-          try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; confirm.disabled = false; back.disabled = false; pw.select(); return; }
+          try { await api.reauth(pw.value); } catch (e) { error.textContent = e.code === 'RATE_LIMITED' ? errorText(e) : 'That password is wrong.'; error.hidden = false; confirm.disabled = false; back.disabled = false; pw.select(); return; }
           pw.value = '';
         }
         const after = await api.approve(a.id, shownHash);

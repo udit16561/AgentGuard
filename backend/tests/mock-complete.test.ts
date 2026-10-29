@@ -77,9 +77,9 @@ describe('a fresh install with no keys', () => {
     expect(check.lines.at(-1)).toMatch(/100% usable with no API keys/);
 
     // a configured secret is reported as "set", never printed
-    const set = selfCheck(loadConfig({ integrationMode: 'live', googleClientId: 'cid-123.apps', googleClientSecret: 'GOCSPX-SECRET-value' }));
+    const set = selfCheck(loadConfig({ integrationMode: 'live', googleClientId: 'cid-123.apps', googleClientSecret: 'FAKE-google-secret-value' }));
     expect(set.features.find(f => f.id === 'liveCalendar')).toMatchObject({ on: true });
-    expect(set.lines.join('\n')).not.toContain('GOCSPX-SECRET-value');
+    expect(set.lines.join('\n')).not.toContain('FAKE-google-secret-value');
     expect(set.lines.join('\n')).not.toContain('cid-123');
   });
 });
@@ -201,5 +201,13 @@ describe('v1 polish', () => {
     expect((await ctx.user.get('/api/auth/session').expect(200)).body).toEqual({ signedIn: true });
     await post(ctx, '/api/auth/logout');
     expect((await ctx.user.get('/api/auth/session').expect(200)).body).toEqual({ signedIn: false });
+  });
+});
+
+describe('v1 polish: config', () => {
+  it('POLISH-02 the per-IP password rate limit defaults to 100 per 15 minutes and is configurable', () => {
+    expect(loadConfig().passwordRateLimit).toBe(100);
+    process.env.PASSWORD_RATE_LIMIT = '7';
+    try { expect(loadConfig().passwordRateLimit).toBe(7); } finally { delete process.env.PASSWORD_RATE_LIMIT; }
   });
 });

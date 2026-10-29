@@ -1,5 +1,6 @@
 {
   "name": "agentguard",
+  "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "AgentGuard prototype. Run everything from here: npm install, npm run db:seed, npm run dev. The API lives in backend/, the PWA in frontend/.",

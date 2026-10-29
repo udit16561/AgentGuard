@@ -1,6 +1,6 @@
 import { h, icon, clear } from '../dom.js';
 import { api } from '../api.js';
-import { openDialog, say, errorText, lockNote } from '../components.js';
+import { openDialog, say, errorText, lockNote, withPassword as sensitive } from '../components.js';
 
 const ROLE_TEXT = {
   agent: ['Agent', 'Powers the Assistant chat. It is just another agent: everything it proposes waits for your approval.'],
@@ -32,28 +32,6 @@ export async function render(view) {
       h('p', {}, 'Optional: bring your own AI model. With no model, AgentGuard runs on its built-in rules. A model never approves anything, and never changes permissions, preferences or the audit log.'))),
     h('div', { class: 'grid-2' }, rolesBox, addBox), listBox);
 
-  /** Key changes need a fresh password check: try, and ask for the password only when the server says so. */
-  async function sensitive(title, fn) {
-    try { return await fn(); }
-    catch (e) { if (e.code !== 'REAUTH_REQUIRED') throw e; }
-    return new Promise((resolve, reject) => {
-      const pw = h('input', { class: 'input', type: 'password', id: 'models-password', autocomplete: 'current-password' });
-      const error = h('p', { class: 'err', hidden: true, role: 'alert' });
-      const back = h('button', { type: 'button', class: 'btn ghost' }, 'Cancel');
-      const ok = h('button', { type: 'button', class: 'btn primary', id: 'models-password-ok' }, 'Confirm password');
-      const dlg = openDialog({ title, body: h('div', { class: 'detail' }, h('label', { class: 'field', for: 'models-password' }, 'Your AgentGuard password', pw), error), actions: [back, ok] });
-      pw.focus();
-      back.addEventListener('click', () => { dlg.close(); reject(Object.assign(new Error('Cancelled'), { code: 'CANCELLED' })); });
-      const go = async () => {
-        ok.disabled = true;
-        try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
-        dlg.close();
-        try { resolve(await fn()); } catch (e) { reject(e); }
-      };
-      ok.addEventListener('click', go);
-      pw.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-    });
-  }
   const fail = e => { if (e.code !== 'CANCELLED') say(errorText(e)); };
 
   async function load() {
@@ -166,12 +144,15 @@ export async function render(view) {
     const keyHelp = h('small', {});
     const hints = h('div', { class: 'detail', id: 'model-hints' });
     const add = h('button', { type: 'button', class: 'btn primary', id: 'model-add' }, 'Add model');
+    const keyField = h('label', { class: 'field', for: 'model-key' }, 'API key', keyHelp, key);
 
     function sync() {
       const p = providers[provider.value];
       urlField.hidden = p.kind !== 'openai-compatible';
       url.value = p.defaultBaseUrl ?? '';
       keyHelp.textContent = p.needsKey ? 'Stored encrypted. Only the last 4 characters are shown again.' : 'Optional for this provider.';
+      keyField.hidden = p.kind === 'builtin';
+      if (p.kind === 'builtin') { modelId.value = catalog.models.find(m => m.provider === p.id)?.modelId ?? ''; label.value ||= 'Offline assistant'; }
       const models = catalog.models.filter(m => m.provider === p.id);
       clear(suggestions).append(...models.filter(m => m.modelId).map(m => h('option', { value: m.modelId }, `${m.label} (${m.role}, approx. $${m.price.input} / $${m.price.output})`)));
       clear(hints).append(
@@ -184,7 +165,7 @@ export async function render(view) {
     add.addEventListener('click', async () => {
       const p = providers[provider.value];
       const body = { provider: p.id, modelId: modelId.value.trim(), label: (label.value || modelId.value).trim() };
-      if (key.value.trim()) body.apiKey = key.value.trim();
+      if (key.value.trim() && p.kind !== 'builtin') body.apiKey = key.value.trim();
       if (p.kind === 'openai-compatible' && url.value.trim()) body.baseUrl = url.value.trim();
       add.disabled = true;
       try {
@@ -200,7 +181,7 @@ export async function render(view) {
       h('div', { class: 'detail' },
         h('label', { class: 'field', for: 'model-provider' }, 'Provider', provider),
         h('label', { class: 'field', for: 'model-id' }, 'Model ID', modelId, suggestions),
-        h('label', { class: 'field', for: 'model-key' }, 'API key', keyHelp, key),
+        keyField,
         urlField,
         h('label', { class: 'field', for: 'model-label' }, 'Name', h('small', {}, 'For you, e.g. "Work Claude".'), label),
         hints, add));

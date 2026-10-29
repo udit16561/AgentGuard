@@ -1,6 +1,7 @@
 import { h, icon, announce } from './dom.js';
 import { STATUS, RISK, FLAG, money, fieldLabel, fieldValue, isLongField, fmtTime } from './format.js';
 import { toolName, opLabel } from './state.js';
+import { api } from './api.js';
 
 export const statusChip = status => {
   const s = STATUS[status] ?? STATUS.UNKNOWN;
@@ -110,3 +111,26 @@ export function errorText(err) {
 // the toast area is already a polite live region, so this is read out once
 export const say = msg => toast(msg);
 export const alertNow = msg => announce(msg);
+
+/** A sensitive change (keys, models): try it, and ask for the password only when the server says so. */
+export async function withPassword(title, fn) {
+  try { return await fn(); }
+  catch (e) { if (e.code !== 'REAUTH_REQUIRED') throw e; }
+  return new Promise((resolve, reject) => {
+    const pw = h('input', { class: 'input', type: 'password', id: 'models-password', autocomplete: 'current-password' });
+    const error = h('p', { class: 'err', hidden: true, role: 'alert' });
+    const back = h('button', { type: 'button', class: 'btn ghost' }, 'Cancel');
+    const ok = h('button', { type: 'button', class: 'btn primary', id: 'models-password-ok' }, 'Confirm password');
+    const dlg = openDialog({ title, body: h('div', { class: 'detail' }, h('label', { class: 'field', for: 'models-password' }, 'Your AgentGuard password', pw), error), actions: [back, ok] });
+    pw.focus();
+    back.addEventListener('click', () => { dlg.close(); reject(Object.assign(new Error('Cancelled'), { code: 'CANCELLED' })); });
+    const go = async () => {
+      ok.disabled = true;
+      try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
+      dlg.close();
+      try { resolve(await fn()); } catch (e) { reject(e); }
+    };
+    ok.addEventListener('click', go);
+    pw.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  });
+}

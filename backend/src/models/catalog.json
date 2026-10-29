@@ -9,9 +9,11 @@
     { "id": "mistral", "name": "Mistral", "kind": "native", "needsKey": true },
     { "id": "openrouter", "name": "OpenRouter", "kind": "openai-compatible", "needsKey": true, "defaultBaseUrl": "https://openrouter.ai/api/v1", "note": "One key for many models, with IDs like anthropic/claude-sonnet-5-5. Pick models that support structured outputs." },
     { "id": "ollama", "name": "Ollama (local)", "kind": "openai-compatible", "needsKey": false, "defaultBaseUrl": "http://localhost:11434/v1", "note": "MIT runtime. Qwen 3, Llama, Gemma, Phi or Mistral; a 7B Q4 model fits in about 8 GB of VRAM. Supports JSON-schema output. Nothing leaves the PC." },
-    { "id": "custom", "name": "Other OpenAI-compatible server", "kind": "openai-compatible", "needsKey": false, "note": "LM Studio or any server with an OpenAI-compatible API. https:// URLs, or http://localhost only." }
+    { "id": "custom", "name": "Other OpenAI-compatible server", "kind": "openai-compatible", "needsKey": false, "note": "LM Studio or any server with an OpenAI-compatible API. https:// URLs, or http://localhost only." },
+    { "id": "offline", "name": "Built-in offline assistant (no key)", "kind": "builtin", "needsKey": false, "note": "Free and offline: follows simple commands such as \"pay Ravi 500\" or \"email asha@example.com Running late\". Not AI, so it can be the Assistant but not the guard." }
   ],
   "models": [
+    { "provider": "offline", "modelId": "agentguard-offline", "label": "Offline assistant", "role": "agent", "price": { "input": 0, "output": 0 }, "note": "Runs inside AgentGuard; nothing leaves the PC." },
     { "provider": "anthropic", "modelId": "claude-opus-5-5", "label": "Claude Opus 5.5", "role": "agent", "price": { "input": 4, "output": 20 } },
     { "provider": "anthropic", "modelId": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "role": "agent", "price": { "input": 2, "output": 10 } },
     { "provider": "openai", "modelId": "gpt-6.1-sol", "label": "GPT-6.1 Sol", "role": "agent", "price": { "input": 2, "output": 10 } },

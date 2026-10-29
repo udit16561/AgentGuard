@@ -2,8 +2,15 @@
   "name": "agentguard",
   "private": true,
   "license": "UNLICENSED",
-  "description": "AgentGuard prototype: end-to-end tests (Playwright). The API lives in backend/, the PWA in frontend/.",
+  "description": "AgentGuard prototype. Run everything from here: npm install, npm run db:seed, npm run dev. The API lives in backend/, the PWA in frontend/.",
   "scripts": {
+    "postinstall": "npm --prefix backend install",
+    "db:seed": "npm --prefix backend run db:seed",
+    "db:reset": "npm --prefix backend run db:reset",
+    "dev": "npm --prefix backend run dev",
+    "dev:lan": "npm --prefix backend run dev:lan",
+    "demo:agent": "npm --prefix backend run demo:agent --",
+    "test": "npm --prefix backend test",
     "test:e2e": "playwright test",
     "test:e2e:mobile": "playwright test --project=\"Mobile Chrome\""
   },

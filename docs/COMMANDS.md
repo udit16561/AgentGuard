@@ -2,6 +2,16 @@
 
 Copy-paste commands for everyone working on AgentGuard. Run them from the **repo root** unless a block says otherwise. Windows users can use PowerShell or Git Bash; where a command differs, both versions are shown.
 
+## 0. Quick start (no API keys needed)
+
+```bash
+git clone https://github.com/<owner>/<repo>.git && cd <repo>
+npm install          # also installs backend/ (postinstall)
+npm run db:seed      # demo user on Pro, all 9 tools MOCK, pending alerts, offline Assistant
+npm run dev          # prints the self-check, then open http://localhost:4000
+```
+Sign in as `demo@agentguard.dev` / `Demo#12345` (printed by the seed in development). No `.env` is needed.
+
 ## 1. One-time setup
 
 ```bash

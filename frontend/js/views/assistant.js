@@ -1,6 +1,6 @@
 import { h, icon } from '../dom.js';
 import { api, chat } from '../api.js';
-import { statusChip, riskBadge, say, errorText } from '../components.js';
+import { statusChip, riskBadge, say, errorText, withPassword } from '../components.js';
 import { toolName, opLabel } from '../state.js';
 
 /**
@@ -20,10 +20,13 @@ export async function render(view) {
     h('p', {}, 'Ask in plain words. The Assistant can only propose actions; each one waits for your approval in Review, under the permissions you gave it in Agents.'))));
 
   if (!agentRole?.model || !agentRole.active) {
+    const offline = agentRole?.model ? null : h('button', { type: 'button', class: 'btn primary', id: 'chat-offline' }, 'Use the offline assistant (no key)');
+    offline?.addEventListener('click', () => useOffline(offline));
     view.append(h('section', { class: 'card', id: 'chat-off' },
       h('h2', {}, agentRole?.model ? 'The Assistant is off' : 'No Assistant model yet'),
-      h('p', {}, agentRole?.model ? 'Its monthly spend cap is reached. Raise the cap or wait for next month.' : 'Add your own model and give it the agent role. Everything else in AgentGuard works without it.'),
-      h('a', { class: 'btn primary', href: '#/settings/models', id: 'chat-setup' }, 'Set up a model')));
+      h('p', {}, agentRole?.model ? 'Its monthly spend cap is reached. Raise the cap or wait for next month.'
+        : 'Start with the built-in offline assistant: free, no API key, nothing leaves this PC. It follows simple commands such as “pay Ravi 500”. Or add your own AI model and give it the agent role.'),
+      h('div', { class: 'actions' }, offline, h('a', { class: `btn ${offline ? 'ghost' : 'primary'}`, href: '#/settings/models', id: 'chat-setup' }, 'Set up a model'))));
     return;
   }
 
@@ -33,7 +36,9 @@ export async function render(view) {
     e.status === 'BLOCKED' ? h('p', { class: 'fine' }, e.message ?? 'Blocked by your settings.') : h('p', { class: 'fine' }, 'Nothing happens until you approve it.'),
     e.id && e.status !== 'BLOCKED' ? h('a', { class: 'link', href: `#/review/${encodeURIComponent(e.id)}` }, 'Review it', icon('arrow', 14)) : null);
 
-  log.append(bubble('bot', h('p', {}, 'Hi! Tell me what you need. I will propose it, and you approve it in Review.')));
+  log.append(bubble('bot', h('p', {}, agentRole.model.provider === 'offline'
+    ? 'Hi! I am the offline assistant: no AI, no internet. Try “pay Ravi 500”, “email asha@example.com Running late”, “meet raj@example.com Coffee chat at 11:30” or “alarm 07:00 Gym”. Everything I propose waits for your approval in Review.'
+    : 'Hi! Tell me what you need. I will propose it, and you approve it in Review.')));
 
   form.addEventListener('submit', async ev => {
     ev.preventDefault();
@@ -66,4 +71,19 @@ export async function render(view) {
     h('div', { class: 'card-h' }, h('h2', { id: 'chat-h' }, `Chat · ${agentRole.model.label}`), h('a', { class: 'link', href: '#/agents' }, 'Its permissions', icon('arrow', 14))),
     log,
     form));
+}
+
+/** Adds the built-in offline model (no key), tests it and makes it the Assistant; the guard role is left as it is. */
+async function useOffline(btn) {
+  btn.disabled = true;
+  try {
+    await withPassword('Confirm your password', async () => {
+      const m = await api.addModel({ provider: 'offline', modelId: 'agentguard-offline', label: 'Offline assistant' });
+      await api.testModel(m.id);
+      const { roles } = await api.models();
+      await api.setModelRoles({ agent: m.id, guard: roles.guard.model?.id ?? null });
+    });
+    say('The offline assistant is on. Give it permissions under Agents → Assistant.');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  } catch (e) { if (e.code !== 'CANCELLED') say(errorText(e)); btn.disabled = false; }
 }

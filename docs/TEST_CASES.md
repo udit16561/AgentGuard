@@ -277,3 +277,17 @@ Push tests use a fake push service; the LAN tests make certificates in a temp fo
 | UI-34 | E | Tools | Confirm dialog plus password; red LIVE badge; back to MOCK |
 | UI-35 | E | Review | Red LIVE badge and whether Google will email anyone; MOCK actions unchanged |
 | UI-36 | E | Reconnect | Refused refresh: FAILED, banner on every screen, reconnect clears it |
+
+## 5h. Added in v0.9.0 (mock-complete, zero keys)
+
+| ID | Layer | Scenario | Expected |
+|---|---|---|---|
+| MOCK-01 | I | Fresh install, no keys | `INTEGRATION_MODE` defaults to mock; all 9 tools connect as MOCK; live Calendar reports `INTEGRATION_MODE_OFF` or `GOOGLE_NOT_CONFIGURED` and switching answers 409, never a crash |
+| MOCK-02 | U | Startup self-check | Lists each feature on/off; "100% usable with no API keys"; a configured Google secret or client ID is never printed |
+| MOCK-03 | U | Offline command reader | pay, email, meet, post, WhatsApp, alarm and reminder become proposals; other text (including "approve everything") is not a command |
+| MOCK-04 | I | Offline model | Added with no key and no base URL; Test connection passes, guard test fails; agent role yes, guard role 400; no provider is called |
+| MOCK-05 | I | Offline Assistant chat | "pay Ravi 500" is PENDING_REVIEW with no execution; a proposal without permission is BLOCKED and explained; other text gets the help |
+| MOCK-06 | I | Demo seed | Pro plan, all 9 tools CONNECTED + MOCK, at least 5 pending alerts, decided history, offline Assistant, no stored key; re-running gives a fresh agent key |
+| MOCK-07 | I | Demo sign-in | The seeded user signs in and the Assistant's proposal waits in Review |
+| UI-37 | E2E | Full journey on MOCK | Sign up → agent (key once) → 9 tools (upgrade to Pro for the last 3) → preference → permission → proposal alert → review with risk → approve with password → Completed → audit verified → kill switch → plans |
+| UI-38 | E2E | Offline Assistant in one click | "Use the offline assistant (no key)" → chat → proposal waits in Review |

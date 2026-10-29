@@ -59,7 +59,9 @@ export async function render(view) {
         h('div', { class: 'actions' }, again, back));
     }
     if (t.live.locked) return h('div', { class: 'live-box' }, lockNote(t.live.locked.upgradeTo, 'live mode'));
-    if (!t.live.available) return null;   // INTEGRATION_MODE or the Google client is not set on this server
+    // INTEGRATION_MODE or the Google client is not set on this server: optional, the tool works in MOCK
+    if (!t.live.available) return h('div', { class: 'live-box' }, h('p', { class: 'fine', id: `live-off-${t.tool}` },
+      h('span', { class: 'badge st-EXPIRED' }, 'Live: not configured'), ' Optional. This tool runs in MOCK mode; see docs/LIVE_GOOGLE_CALENDAR.md to connect your real Google Calendar.'));
     const go = h('button', { type: 'button', class: 'btn sm', id: `live-${t.tool}` }, 'Use live Google Calendar…');
     go.addEventListener('click', () => startLive(t.tool, t.name));
     return h('div', { class: 'live-box' }, h('div', { class: 'actions' }, go));

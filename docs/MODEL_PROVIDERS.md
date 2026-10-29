@@ -13,6 +13,8 @@ The app must still work with **zero keys**: everything falls back to the determi
 | `guard` | Optional model layer for intent/risk and the preference parser (INTENT_AND_RISK §3, PREFERENCES). It may only raise risk, add flags, or draft rules for the user to confirm. | Optional | Small |
 | none | Deterministic rules plus TF-IDF | Always on | — |
 
+**Built-in offline model (v0.9.0).** Provider `offline`, model `agentguard-offline`: no key, no network, free. It is not AI: it reads simple commands ("pay Ravi 500", "email asha@example.com Running late", "meet raj@example.com Coffee chat at 11:30", "post on linkedin …", "whatsapp +91… …", "alarm 07:00 Gym", "remind me at 18:00 to …") and proposes them through `propose_action`, so every gate applies. It may take the `agent` role only; the `guard` role refuses it. The Assistant screen offers it in one click when no model is set, and the seed turns it on for the demo user.
+
 Rules:
 - A model never approves, never lowers risk, and never edits permissions, preferences or audit. Same gates as any agent.
 - Recommend a **different provider** for `guard` than for `agent`, so one model isn't checking itself, and show a warning if they're the same.

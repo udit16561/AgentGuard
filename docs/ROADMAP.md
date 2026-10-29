@@ -35,5 +35,8 @@ The guard role (v0.5.0) is the first model layer; still to do: evaluation fixtur
 ## M6 — First live integration (v0.8.0, owner-approved)
 Google Calendar via Google's own OAuth and Calendar API: view, create, update, cancel. LIVE only when switched on per tool (confirm + password) with `INTEGRATION_MODE=live`; gates re-checked right before each call; no invitations unless approved; Reconnect Google banner; manual `npm run live:check:calendar`. Every other tool stays MOCK.
 
+## M7 — Mock-complete (v0.9.0)
+Live integrations frozen. Runs with zero keys: everything MOCK by default, live Calendar shows "not configured", a built-in offline Assistant (no key), a startup self-check, a seed that looks alive (Pro, all tools, pending alerts, history), the full journey covered by one UI test, and a rewritten README.
+
 ## Later
 Native wrappers (Capacitor/Tauri), team accounts, policy templates.

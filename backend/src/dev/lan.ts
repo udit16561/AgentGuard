@@ -14,6 +14,7 @@ import webpush from 'web-push';
 import { lanAddress, makeDevCerts } from './certs';
 import { createApp } from '../app';
 import { dbPathFromUrl } from '../server-config';
+import { selfCheck } from '../selfcheck';
 
 const ROOT = path.resolve(__dirname, '../..');
 const ENV_FILE = path.join(ROOT, '.env');
@@ -58,7 +59,8 @@ async function main() {
   if (!ip) { console.error('No Wi-Fi/LAN IPv4 address found. Connect to a network, or set LAN_IP.'); process.exit(1); }
   const certs = await makeDevCerts(path.join(ROOT, '.certs'), ip);
   // createApp reads the config now, after ensureEnv() filled in what was missing
-  const { app } = await createApp({ dbPath: dbPathFromUrl(process.env.DATABASE_URL) });
+  const { app, config } = await createApp({ dbPath: dbPathFromUrl(process.env.DATABASE_URL) });
+  console.log(selfCheck(config).lines.join('\n'));
   const url = `https://${ip}:${HTTPS_PORT}`;
 
   https.createServer({ key: fs.readFileSync(certs.key), cert: fs.readFileSync(certs.cert) }, app).listen(HTTPS_PORT, '0.0.0.0');

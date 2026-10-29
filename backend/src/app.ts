@@ -27,6 +27,7 @@ import type { PreferenceModel } from './services/preferences/parse';
 import { providerFactory, type ModelFactory } from './models/providers';
 import type { Resolve } from './models/baseUrl';
 import { fakeModelFactory } from './models/fake';
+import { offlineModel } from './models/offline';
 import { modelRoutes } from './routes/models';
 import { assistantRoutes } from './routes/assistant';
 import { createEventBus } from './services/events';
@@ -100,8 +101,10 @@ export async function createApp(options: AppOptions = {}) {
   const preferenceModel = options.preferenceModel
     ?? (config.preferenceModelProvider === 'anthropic' && config.preferenceModelApiKey ? anthropicPreferenceModel(config.preferenceModelApiKey, config.preferenceModel) : undefined);
   // the fake factory exists for the browser tests only: NODE_ENV=test and MODEL_PROVIDER_MODE=fake, never otherwise
-  const modelFactory = options.modelFactory
+  const baseFactory = options.modelFactory
     ?? (config.nodeEnv === 'test' && process.env.MODEL_PROVIDER_MODE === 'fake' ? fakeModelFactory() : providerFactory({ resolveHost: options.resolveHost }));
+  // the built-in offline assistant needs no key and no network, so it is the same in every build
+  const modelFactory: ModelFactory = spec => (spec.provider === 'offline' ? offlineModel(spec.modelId) : baseFactory(spec));
   // every audited change is announced: to open dashboards (SSE) and, for new alerts, to the user's phones (Web Push)
   const events = createEventBus();
   let onPush: ReturnType<typeof pushOnAlert> | null = null;

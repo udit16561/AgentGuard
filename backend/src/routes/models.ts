@@ -54,7 +54,7 @@ export function modelRoutes(ctx: Ctx) {
     const body = AddBody.parse(req.body);
     const info = providerInfo(body.provider);
     // native providers use their own endpoints: no custom URL (this is also what keeps Anthropic off its OpenAI-compat endpoint)
-    if (info.kind === 'native' && body.baseUrl) throw new AppError(400, 'VALIDATION_ERROR', `${info.name} uses its own endpoint; a base URL is not allowed`);
+    if (info.kind !== 'openai-compatible' && body.baseUrl) throw new AppError(400, 'VALIDATION_ERROR', `${info.name} uses its own endpoint; a base URL is not allowed`);
     if (info.needsKey && !body.apiKey) throw new AppError(400, 'VALIDATION_ERROR', `${info.name} needs an API key`);
     let baseUrl: string | null = null;
     if (info.kind === 'openai-compatible') {
@@ -93,6 +93,7 @@ export function modelRoutes(ctx: Ctx) {
       if (id && !model) throw new AppError(400, 'VALIDATION_ERROR', `Unknown model for the ${role} role`);
       if (model && model.last_test_ok !== 1) throw new AppError(400, 'VALIDATION_ERROR', `Run a successful Test connection for “${model.label}” first`);
       if (model) ctx.entitlements.require(userId, { feature: 'modelRole', role, model });
+      if (role === 'guard' && model?.provider === 'offline') throw new AppError(400, 'VALIDATION_ERROR', 'The offline assistant is not AI, so it cannot be the guard; the built-in rules already check every action');
       if (role === 'guard' && model && model.guard_capable !== 1) throw new AppError(400, 'VALIDATION_ERROR', `“${model.label}” failed the structured-output test, so it cannot be the guard`);
       const cap = body.caps?.[role] === undefined ? roleRow(ctx, userId, role).monthly_cap_usd : body.caps[role]!;
       if (model && cap != null && !priceOf(model.provider, model.model_id)) throw new AppError(400, 'VALIDATION_ERROR', `A spend cap needs a known price, and “${model.label}” is not in the catalog`);

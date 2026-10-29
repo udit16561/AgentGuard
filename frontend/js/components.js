@@ -1,5 +1,5 @@
 import { h, icon, announce } from './dom.js';
-import { STATUS, RISK, FLAG, money, fieldLabel, fieldValue, isLongField, fmtTime } from './format.js';
+import { STATUS, RISK, FLAG, money, fieldLabel, fieldValue, isLongField, fmtTime, humanReason } from './format.js';
 import { toolName, opLabel } from './state.js';
 import { api } from './api.js';
 
@@ -102,10 +102,10 @@ export function errorText(err) {
     REAUTH_REQUIRED: 'Please confirm your password to approve this.',
     AGENT_PAUSED: 'Agents are paused, so nothing can run. Turn the kill switch off first.',
     ALREADY_DECIDED: 'This action was already decided.',
-    PERMISSION_DENIED: `Not allowed: ${err.message}`,
+    PERMISSION_DENIED: `Not allowed. ${humanReason(err.message)}`,
     RATE_LIMITED: 'Too many attempts. Wait a moment and try again.'
   };
-  return map[err.code] ?? err.message ?? 'Something went wrong.';
+  return map[err.code] ?? (err.message ? humanReason(err.message) : 'Something went wrong.');
 }
 
 // the toast area is already a polite live region, so this is read out once

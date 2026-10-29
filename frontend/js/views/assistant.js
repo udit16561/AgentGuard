@@ -2,6 +2,7 @@ import { h, icon } from '../dom.js';
 import { api, chat } from '../api.js';
 import { statusChip, riskBadge, say, errorText, withPassword } from '../components.js';
 import { toolName, opLabel } from '../state.js';
+import { humanReason } from '../format.js';
 
 /**
  * Assistant: a chat with your own model (the agent role). It is just another agent: what it proposes lands in
@@ -33,7 +34,7 @@ export async function render(view) {
   const bubble = (who, ...children) => h('div', { class: `msg ${who}` }, h('span', { class: 'sr' }, who === 'me' ? 'You said: ' : 'Assistant: '), ...children);
   const proposalCard = e => h('div', { class: 'proposal', id: e.id ? `proposal-${e.id}` : undefined },
     h('div', { class: 'top' }, h('b', {}, `${toolName(e.tool)} · ${opLabel(e.tool, e.operation)}`), statusChip(e.status), e.riskLevel ? riskBadge(e.riskLevel) : null),
-    e.status === 'BLOCKED' ? h('p', { class: 'fine' }, e.message ?? 'Blocked by your settings.') : h('p', { class: 'fine' }, 'Nothing happens until you approve it.'),
+    e.status === 'BLOCKED' ? h('p', { class: 'fine block-why' }, e.message ? humanReason(e.message) : 'Blocked by your settings.') : h('p', { class: 'fine' }, 'Nothing happens until you approve it.'),
     e.id && e.status !== 'BLOCKED' ? h('a', { class: 'link', href: `#/review/${encodeURIComponent(e.id)}` }, 'Review it', icon('arrow', 14)) : null);
 
   log.append(bubble('bot', h('p', {}, agentRole.model.provider === 'offline'

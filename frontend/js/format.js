@@ -48,12 +48,19 @@ export const BLOCK_REASON = {
   METHOD_NOT_ALLOWED: 'this payment method is not allowed', CURRENCY_NOT_ALLOWED: 'this currency is not allowed', CATEGORY_BLOCKED: 'it is in a category you blocked',
   RECIPIENT_NOT_ALLOWED: 'a recipient is not on your allowed list', BULK_LIMIT_EXCEEDED: 'it goes to more people than you allow', OUTSIDE_ALLOWED_HOURS: 'it is outside your allowed hours',
   PREFERENCE_VIOLATION: 'it breaks a hard rule in your preferences', PREFERENCE_CHECK_FAILED: 'your preferences could not be checked',
-  KILL_SWITCH: 'the kill switch was on', AGENT_PAUSED: 'the agent was paused', REPLACED: 'the agent sent a newer version', MODE_CHANGED: 'the tool switched between MOCK and LIVE',
+  KILL_SWITCH: 'the kill switch is on', AGENT_PAUSED: 'the agent is paused', REPLACED: 'the agent sent a newer version', MODE_CHANGED: 'the tool switched between MOCK and LIVE',
   LIVE_UNAVAILABLE: 'live mode is not configured on this server', LIVE_NOT_IN_PLAN: 'your plan runs tools in MOCK only', RECONNECT_REQUIRED: 'Google needs you to sign in again',
   LIVE_PAYLOAD_INVALID: 'Google could not take these details', PERMISSION_DENIED: 'a permission or limit no longer allows it', PAYLOAD_CHANGED: 'the details changed after approval',
   APPROVAL_EXPIRED: 'the approval expired', ENTITLEMENT_REQUIRED: 'your plan does not include this tool'
 };
 export const blockText = code => BLOCK_REASON[code] ?? (code ? code.replace(/_/g, ' ').toLowerCase() : 'it is not allowed');
+/** "LIMIT_EXCEEDED: This would take today's total…" from the API, in plain words: "It is over your daily cap. This would take today's total…" */
+export function humanReason(msg) {
+  const m = /^([A-Z][A-Z_]+): (.*)$/s.exec(String(msg ?? ''));
+  if (!m) return String(msg ?? '');
+  const why = blockText(m[1]);
+  return `${why[0].toUpperCase()}${why.slice(1)}. ${m[2]}`;
+}
 export const RISK = { LOW: 'Low risk', MEDIUM: 'Medium risk', HIGH: 'High risk', CRITICAL: 'Critical risk' };
 export const OPEN = ['PENDING_REVIEW', 'NEEDS_REVIEW'];
 

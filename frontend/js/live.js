@@ -29,7 +29,7 @@ export function startLive(tool, name, { reconnect = false } = {}) {
     error.hidden = true;
     if (!pw.value) { error.textContent = 'Enter your password to continue.'; error.hidden = false; pw.focus(); return; }
     ok.disabled = true;
-    try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
+    try { await api.reauth(pw.value); } catch (e) { error.textContent = e.code === 'RATE_LIMITED' ? errorText(e) : 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
     pw.value = '';
     try {
       const { url } = await api.goLive(tool);

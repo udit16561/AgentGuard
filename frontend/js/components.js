@@ -1,5 +1,5 @@
 import { h, icon, announce } from './dom.js';
-import { STATUS, RISK, FLAG, money, fieldLabel, fieldValue, isLongField, fmtTime } from './format.js';
+import { STATUS, RISK, FLAG, money, fieldLabel, fieldValue, isLongField, fmtTime, humanReason } from './format.js';
 import { toolName, opLabel } from './state.js';
 import { api } from './api.js';
 
@@ -68,7 +68,7 @@ export function payloadFields(payload) {
   const p = { ...(payload ?? {}) };
   const rows = [];
   if (typeof p.amount === 'number') { rows.push(['Amount', money(p.amount, p.currency), false]); delete p.amount; delete p.currency; }
-  for (const [k, v] of Object.entries(p)) rows.push([fieldLabel(k), fieldValue(v), isLongField(k)]);
+  for (const [k, v] of Object.entries(p)) rows.push([fieldLabel(k), fieldValue(v, k), isLongField(k)]);
   if (!rows.length) return h('p', { class: 'empty' }, 'No details were sent with this action.');
   return h('dl', { class: 'fields' }, rows.map(([k, v, long]) => h('div', {}, h('dt', {}, k), h('dd', {}, long ? h('p', { class: 'preview' }, v) : v))));
 }
@@ -102,10 +102,10 @@ export function errorText(err) {
     REAUTH_REQUIRED: 'Please confirm your password to approve this.',
     AGENT_PAUSED: 'Agents are paused, so nothing can run. Turn the kill switch off first.',
     ALREADY_DECIDED: 'This action was already decided.',
-    PERMISSION_DENIED: `Not allowed: ${err.message}`,
+    PERMISSION_DENIED: `Not allowed. ${humanReason(err.message)}`,
     RATE_LIMITED: 'Too many attempts. Wait a moment and try again.'
   };
-  return map[err.code] ?? err.message ?? 'Something went wrong.';
+  return map[err.code] ?? (err.message ? humanReason(err.message) : 'Something went wrong.');
 }
 
 // the toast area is already a polite live region, so this is read out once
@@ -126,7 +126,7 @@ export async function withPassword(title, fn) {
     back.addEventListener('click', () => { dlg.close(); reject(Object.assign(new Error('Cancelled'), { code: 'CANCELLED' })); });
     const go = async () => {
       ok.disabled = true;
-      try { await api.reauth(pw.value); } catch { error.textContent = 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
+      try { await api.reauth(pw.value); } catch (e) { error.textContent = e.code === 'RATE_LIMITED' ? errorText(e) : 'That password is wrong.'; error.hidden = false; ok.disabled = false; pw.select(); return; }
       dlg.close();
       try { resolve(await fn()); } catch (e) { reject(e); }
     };

@@ -1,4 +1,4 @@
-import { h, icon, clear } from '../dom.js';
+import { h, icon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { openDialog, say, errorText, lockNote, withPassword as sensitive } from '../components.js';
 
@@ -67,7 +67,7 @@ export async function render(view) {
       if (!r.active) return h('p', { class: 'err', id: `role-off-${role}` }, `Off: the monthly spend cap is reached (${usd(r.spent)} of ${usd(r.cap)}). Built-in rules are used until next month.`);
       return h('p', { class: 'fine' }, r.cap != null ? `About ${usd(r.spent)} of ${usd(r.cap)} used this month.` : `About ${usd(r.spent)} used this month (approx., from token counts).`);
     };
-    clear(rolesBox).append(
+    fill(rolesBox, 
       h('h2', { id: 'mr-h' }, 'Roles'),
       ...['agent', 'guard'].map(role => h('div', { class: 'detail' },
         h('label', { class: 'field', for: `role-${role}` }, ROLE_TEXT[role][0], h('small', {}, ROLE_TEXT[role][1]), selects[role]),
@@ -82,7 +82,7 @@ export async function render(view) {
   }
 
   function renderList(data) {
-    clear(listBox).append(h('h2', { id: 'ml-h' }, 'Your models'),
+    fill(listBox, h('h2', { id: 'ml-h' }, 'Your models'),
       data.models.length ? h('div', { class: 'rows' }, data.models.map(modelRow)) : h('p', { class: 'empty' }, 'No models yet. AgentGuard is using its built-in rules.'));
   }
 
@@ -154,8 +154,8 @@ export async function render(view) {
       keyField.hidden = p.kind === 'builtin';
       if (p.kind === 'builtin') { modelId.value = catalog.models.find(m => m.provider === p.id)?.modelId ?? ''; label.value ||= 'Offline assistant'; }
       const models = catalog.models.filter(m => m.provider === p.id);
-      clear(suggestions).append(...models.filter(m => m.modelId).map(m => h('option', { value: m.modelId }, `${m.label} (${m.role}, approx. $${m.price.input} / $${m.price.output})`)));
-      clear(hints).append(
+      fill(suggestions, ...models.filter(m => m.modelId).map(m => h('option', { value: m.modelId }, `${m.label} (${m.role}, approx. $${m.price.input} / $${m.price.output})`)));
+      fill(hints, 
         p.note ? h('p', { class: 'fine' }, p.note) : null,
         models.length ? h('ul', { class: 'dots suggest' }, models.map(m => h('li', {}, h('b', {}, m.label), ` · suggested for ${m.role === 'guard' ? 'the guard' : 'the agent'} · approx. $${m.price.input} in / $${m.price.output} out per 1M tokens`, m.note ? ` · ${m.note}` : ''))) : null,
         models.length ? h('p', { class: 'fine' }, `Prices are approximate, checked on ${catalog.checkedOn}.`) : null);
@@ -177,7 +177,7 @@ export async function render(view) {
       add.disabled = false;
     });
 
-    clear(addBox).append(h('h2', { id: 'ma-h' }, 'Add a model'),
+    fill(addBox, h('h2', { id: 'ma-h' }, 'Add a model'),
       h('div', { class: 'detail' },
         h('label', { class: 'field', for: 'model-provider' }, 'Provider', provider),
         h('label', { class: 'field', for: 'model-id' }, 'Model ID', modelId, suggestions),

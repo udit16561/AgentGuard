@@ -1,4 +1,4 @@
-import { h, icon, toolIcon, clear } from '../dom.js';
+import { h, icon, toolIcon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { OPEN, fmtTime } from '../format.js';
@@ -49,7 +49,7 @@ export async function render(view) {
   async function renderSpending() {
     let data;
     try { data = await api.spending(); } catch { return; }
-    clear(spendBox).append(...(data.agents.length ? data.agents.map(a => h('div', { class: 'spend-agent' },
+    fill(spendBox, ...(data.agents.length ? data.agents.map(a => h('div', { class: 'spend-agent' },
       h('p', { class: 't' }, icon('payments', 16), ' ', a.agentName),
       h('div', { class: 'spend-grid' },
         meter(`spend-${a.agentId}-today`, 'Today', a.today, a.caps.daily, data.currency),
@@ -77,7 +77,7 @@ export async function render(view) {
         document.getElementById('kill-switch')?.focus();
       } catch (e) { say(errorText(e)); btn.disabled = false; }
     });
-    clear(killCard).append(
+    fill(killCard, 
       h('h2', { id: 'kill-h' }, 'Kill switch'),
       h('p', {}, on ? 'PAUSED. No agent can propose or run anything, including actions already waiting.' : 'One tap pauses every agent at once, including actions already waiting for you.'),
       btn,
@@ -85,8 +85,8 @@ export async function render(view) {
   }
 
   function renderAgents() {
-    clear(agentList).append(...(agents.length ? agents.map(a => h('div', { class: 'row' }, h('span', { class: 'ic' }, icon('bot')),
-      h('span', { class: 'grow' }, h('span', { class: 't' }, a.name), h('span', { class: 'm' }, a.model ?? 'No model set')),
+    fill(agentList, ...(agents.length ? agents.map(a => h('div', { class: 'row' }, h('span', { class: 'ic' }, icon('bot')),
+      h('span', { class: 'grow' }, h('span', { class: 't' }, a.name), h('span', { class: 'm' }, a.kind === 'assistant' ? 'Built-in Assistant (model under Settings → Models)' : a.model ?? 'No model set')),
       statusChip(state.me?.killSwitch ? 'PAUSED' : a.status)))
       : [h('p', { class: 'empty' }, 'No agents yet. Create one under Agents.')]));
   }
@@ -98,11 +98,11 @@ export async function render(view) {
     sig = next;
     heroCount.textContent = String(open.length);
     const high = open.filter(a => a.riskLevel === 'HIGH' || a.riskLevel === 'CRITICAL').length;
-    clear(heroPills).append(h('span', { class: 'pill' }, `${high} high or critical`), h('span', { class: 'pill' }, `${open.filter(a => a.status === 'NEEDS_REVIEW').length} need review`));
-    clear(heroCta).append(open.length ? h('a', { class: 'btn', href: `#/review/${encodeURIComponent(open[0].id)}` }, 'Start reviewing', icon('arrow', 16)) : h('p', {}, h('b', {}, 'All caught up.')));
-    clear(waiting).append(...(open.length ? open.slice(0, 5).map(row) : [h('p', { class: 'empty' }, 'Nothing is waiting for you.')]));
+    fill(heroPills, h('span', { class: 'pill' }, `${high} high or critical`), h('span', { class: 'pill' }, `${open.filter(a => a.status === 'NEEDS_REVIEW').length} need review`));
+    fill(heroCta, open.length ? h('a', { class: 'btn', href: `#/review/${encodeURIComponent(open[0].id)}` }, 'Start reviewing', icon('arrow', 16)) : h('p', {}, h('b', {}, 'All caught up.')));
+    fill(waiting, ...(open.length ? open.slice(0, 5).map(row) : [h('p', { class: 'empty' }, 'Nothing is waiting for you.')]));
     renderSpending();
-    clear(recent).append(...(actions.length ? actions.slice(0, 6).map(row) : [h('p', { class: 'empty' }, 'No actions yet. Your agents’ proposals appear here.')]));
+    fill(recent, ...(actions.length ? actions.slice(0, 6).map(row) : [h('p', { class: 'empty' }, 'No actions yet. Your agents’ proposals appear here.')]));
   }
 
   renderKill();

@@ -1,5 +1,7 @@
 # Roadmap
 
+> **Status (2026-10-29): the mock prototype is complete — v1.0.0.** Every feature below through M7 runs in MOCK mode with no API keys. Live integrations are future work.
+
 Build in order. Each milestone ends with tests passing and a short report to the owner.
 
 ## M0 — Scaffold
@@ -38,5 +40,16 @@ Google Calendar via Google's own OAuth and Calendar API: view, create, update, c
 ## M7 — Mock-complete (v0.9.0)
 Live integrations frozen. Runs with zero keys: everything MOCK by default, live Calendar shows "not configured", a built-in offline Assistant (no key), a startup self-check, a seed that looks alive (Pro, all tools, pending alerts, history), the full journey covered by one UI test, and a rewritten README.
 
+## M8 — 1.0.0: mock prototype complete ✓
+Polish pass on every screen (desktop and 360 px): empty, error and loading states, plain-language block reasons, one date format, a quiet console; DEMO.md walkthrough; final security self-review. No keys required at any point.
+
+## Future work: live integrations
+Each needs the owner's own developer keys and explicit approval, one tool at a time, behind the same three gates (the v0.8.0 Calendar adapter is the pattern):
+- Google Calendar live (built in v0.8.0, off by default: needs a Google OAuth client)
+- Gmail (send, reply) via Google OAuth
+- WhatsApp Business, LinkedIn, X, Instagram posting APIs
+- A real payments provider (sandbox first)
+- Push alerts in production (VAPID keys) and an email digest
+
 ## Later
-Native wrappers (Capacitor/Tauri), team accounts, policy templates.
+Native wrappers (Capacitor/Tauri), team accounts, policy templates, guard-model evaluation fixtures (M5).

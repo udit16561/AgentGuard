@@ -1,4 +1,4 @@
-import { h, icon, clear } from '../dom.js';
+import { h, icon, clear, fill } from '../dom.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { prefs, savePrefs, clearPrefs, applyTheme } from '../format.js';
@@ -27,7 +27,7 @@ export async function render(view, param) {
     h('div', { class: 'grid-2' },
       h('section', { class: 'card', 'aria-labelledby': 's-look' }, h('h2', { id: 's-look' }, 'Appearance'),
         h('fieldset', { class: 'detail' }, h('legend', { class: 'sub-h' }, 'Theme'), radio('theme', 'system', 'Match my device', prefs.theme), radio('theme', 'light', 'Light', prefs.theme), radio('theme', 'dark', 'Dark', prefs.theme)),
-        h('fieldset', { class: 'detail' }, h('legend', { class: 'sub-h' }, 'Show times in'), radio('tz', 'Asia/Kolkata', 'India Standard Time', prefs.tz), radio('tz', 'local', 'This device’s time zone', prefs.tz)),
+        h('fieldset', { class: 'detail' }, h('legend', { class: 'sub-h' }, 'Show times in'), radio('tz', 'account', `Your account’s time zone (${state.me?.timezone ?? 'Asia/Kolkata'})`, prefs.tz), radio('tz', 'local', 'This device’s time zone', prefs.tz)),
         clearBtn,
         h('p', { class: 'fine' }, 'Clears only these display settings in this browser. It does not touch decisions, permissions or the audit log.')),
       h('section', { class: 'card', 'aria-labelledby': 's-safe' }, h('h2', { id: 's-safe' }, 'Always-on safeguards'),
@@ -53,7 +53,7 @@ async function renderAlerts(card) {
     h('p', {}, 'Get a notification when an agent wants to do something, like “Helper wants to pay ₹500 to Ravi”. Tapping it opens the Review screen.'),
     h('p', { class: 'fine' }, 'Alerts never approve anything: you still decide in the app, with your password for high-risk actions.')];
   const status = h('p', { id: 'alerts-status', 'aria-live': 'polite' });
-  const draw = (...parts) => clear(card).append(...head, status, ...parts);
+  const draw = (...parts) => fill(card, ...head, status, ...parts);
   let key;
   try { key = await api.pushKey(); } catch { draw(); status.textContent = 'Could not check alert settings.'; return; }
   if (key.locked) { draw(h('p', {}, 'In-app and live alerts are on for every plan. ', lockNote(key.upgradeTo, 'phone alerts'))); status.textContent = 'Phone alerts are not included in your plan.'; return; }

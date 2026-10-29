@@ -6,7 +6,8 @@
 - Every action an agent proposes is checked, scored for intent and risk, and waits for your approval when it matters.
 - Every step lands in a tamper-evident audit log you can verify.
 
-> Private repository · Proprietary license (see `LICENSE`). Runs fully in **MOCK mode with no API keys**.
+> **Version 1.0.0: mock prototype, no keys required.** Private repository · Proprietary license (see `LICENSE`).
+> Want a guided tour? Follow **[DEMO.md](DEMO.md)**: 12 clicks, about 10 minutes.
 
 ---
 
@@ -86,6 +87,11 @@ Requires Node.js 20+ and Git.
 - Settings → Models → Add a model → pick a provider, paste your key (or use Ollama locally with no key).
 - Run **Test connection**, then give it the **Assistant** role, the **guard** role, or both.
 - A model can only propose actions or raise risk; it never approves anything. See `docs/MODEL_PROVIDERS.md`.
+
+## Roadmap
+
+- 1.0.0 is the complete mock prototype: every screen and safety feature works with simulated tools.
+- Future work: live integrations, one tool at a time with your own keys (Gmail, social posting, payments). See `docs/ROADMAP.md`.
 
 ## Optional: connect Google Calendar
 

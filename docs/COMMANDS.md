@@ -130,18 +130,7 @@ gh repo view <owner>/<repo> --json visibility
 git ls-files | grep -E "\.env$|\.db$|\.sqlite" && echo "REMOVE THESE" || echo "clean"
 ```
 
-## 7. Claude Code commands
-
-```bash
-claude                      # start in the repo root; CLAUDE.md loads automatically
-```
-Useful inside a session:
-- `/init`: don't run it. `CLAUDE.md` already exists, and `/init` could overwrite it.
-- `/clear`: start a fresh task with clean context.
-- `/compact`: shrink a long session.
-- Paste prompts from `KICKOFF_PROMPT.md`.
-
-## 8. Troubleshooting
+## 7. Troubleshooting
 
 | Problem | Fix |
 |---|---|

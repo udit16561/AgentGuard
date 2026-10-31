@@ -242,4 +242,4 @@ Every test runs offline. No real model, Google or payment call is ever made.
 
 ## License
 
-Proprietary. Copyright (c) 2026 Udit sharma. All rights reserved; see `LICENSE`.
+MIT. Copyright (c) 2026 Udit sharma. See `LICENSE`.

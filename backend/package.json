@@ -22,7 +22,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "tsx src/db/reset.ts"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.88",
     "@ai-sdk/google": "4.0.105",
